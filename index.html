@@ -3712,7 +3712,7 @@ function buildAsmCard(list,id,sess){
     (sess&&!isOth?'<span class="tag tag-ok">▶ vaše</span>':isOth?'<span class="tag tag-wn">'+esc(sess.mechName)+'</span>':'')+
     (sess?'<span class="stimer '+(rem>0?'g':'r')+'">'+fmtCD(rem)+'</span>':'')+
     '</div>'+
-    (workers.length>1?'<div style="font-size:11px;color:var(--mu);margin-top:5px;font-family:'IBM Plex Mono',monospace">👥 '+workers.map(function(w){return w.name;}).join(', ')+'</div>':'');
+    (workers.length>1?'<div style="font-size:11px;color:var(--mu);margin-top:5px;font-family:monospace">👥 '+workers.map(function(w){return w.name;}).join(', ')+'</div>':'');
   card.addEventListener('click',function(){openWork(id);});
   list.appendChild(card);
 }
@@ -3970,7 +3970,7 @@ document.getElementById('btnSnap').addEventListener('click',async function(){
   try{
     var r=await fetch(VISION_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requests:[{image:{content:b64},features:[{type:'TEXT_DETECTION',maxResults:1}]}]})});
     var data=await r.json();var anns=data.responses?.[0]?.textAnnotations||[];var found=null;
-    if(anns.length>1){var qa=anns.find(function(a){return a.description.toUpperCase()==='QTY';});if(qa){var qt=Math.min(...qa.boundingPoly.vertices.map(function(v){return v.y||0;}));var qr=Math.max(...qa.boundingPoly.vertices.map(function(v){return v.x||0;}));var by=-1,bc=null;for(var a of anns.slice(1)){var ab=Math.max(...a.boundingPoly.vertices.map(function(v){return v.y||0;}));var al=Math.min(...a.boundingPoly.vertices.map(function(v){return v.x||0;}));var d2=a.description.replace(/\s+/g,'').toUpperCase().replace(/^O(?=[A-Z0-9])/,'0');if(ab<qt&&/^\d/.test(d2)&&d2.length>=4&&al<qr&&ab>by){by=ab;bc=d2;}}if(bc)found=bc;}}
+    if(anns.length>1){var qa=anns.find(function(a){return a.description.toUpperCase()==='QTY';});if(qa){var qt=qa.boundingPoly.vertices.reduce(function(m,v){return Math.min(m,v.y||0);},Infinity);var qr=qa.boundingPoly.vertices.reduce(function(m,v){return Math.max(m,v.x||0);},-Infinity);var by=-1,bc=null;for(var a of anns.slice(1)){var ab=a.boundingPoly.vertices.reduce(function(m,v){return Math.max(m,v.y||0);},-Infinity);var al=a.boundingPoly.vertices.reduce(function(m,v){return Math.min(m,v.x||0);},Infinity);var d2=a.description.replace(/\s+/g,'').toUpperCase().replace(/^O(?=[A-Z0-9])/,'0');if(ab<qt&&/^\d/.test(d2)&&d2.length>=4&&al<qr&&ab>by){by=ab;bc=d2;}}if(bc)found=bc;}}
     if(!found){var raw=(anns[0]?.description||'').toUpperCase().replace(/^O(?=[A-Z0-9])/gm,'0');var uniq2=getUniq(curAsmId);for(var c of Object.keys(uniq2)){if(raw.includes(c)){found=c;break;}}}
     if(found){document.getElementById('ocrSt').textContent='✓ '+found;stopCam();processScan(found);}
     else{document.getElementById('ocrSt').textContent='Nenalezeno';document.getElementById('btnSnap').disabled=false;}
@@ -4297,7 +4297,7 @@ function buildStats(){
       var avg=Math.round(e[1].times.reduce(function(a,b){return a+b;},0)/e[1].times.length/60);
       var cfg=getAsmCfg(e[0]);return{id:e[0],name:e[1].name,avg:avg,count:e[1].count,limit:cfg.estimatedMin};
     }).sort(function(a,b){return b.count-a.count;});
-    var maxAvg=Math.max(...asmStats.map(function(a){return a.avg;}),1);
+    var maxAvg=asmStats.reduce(function(m,a){return a.avg>m?a.avg:m;},1);
     var h1=document.createElement('div');h1.innerHTML='<div style="font-size:14px;font-weight:600;margin-bottom:10px">Průměrný čas montáže podle sestavy</div>';cont.appendChild(h1);
     var asmBlock=document.createElement('div');asmBlock.className='acard';
     asmStats.forEach(function(a){
@@ -4321,7 +4321,7 @@ function buildStats(){
   if(Object.keys(byMech).length){
     var h2=document.createElement('div');h2.innerHTML='<div style="font-size:14px;font-weight:600;margin:16px 0 10px">Mechanici</div>';cont.appendChild(h2);
     var mechBlock=document.createElement('div');mechBlock.className='acard';
-    var maxCount=Math.max(...Object.values(byMech).map(function(m){return m.count;}),1);
+    var maxCount=Object.values(byMech).reduce(function(m,v){return v.count>m?v.count:m;},1);
     Object.entries(byMech).sort(function(a,b){return b[1].count-a[1].count;}).forEach(function(e){
       var avg=e[1].count?Math.round(e[1].totalSec/e[1].count/60):0;
       var row=document.createElement('div');row.className='stat-bar-row';
