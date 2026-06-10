@@ -4401,14 +4401,14 @@ function buildLive(){
     var unres=(s.issues||[]).filter(function(i){return!i.resolved;}).length;var ph=s.photoCount||0;
     var card=document.createElement('div');card.className='livecard'+(s.isRunning?over?' over':' run':'');
     var liveWorkers=s.workers||[];
-    var workersHtml=liveWorkers.length>1?'<div style="font-size:10px;color:var(--mu);font-family:'IBM Plex Mono',monospace;margin-top:2px">👥 '+liveWorkers.map(function(w){return w.name;}).join(', ')+'</div>':'';
+    var workersHtml=liveWorkers.length>1?'<div style="font-size:10px;color:var(--mu);font-family:monospace;margin-top:2px">👥 '+liveWorkers.map(function(w){return w.name;}).join(', ')+'</div>':'';
     card.innerHTML='<div class="livetop"><div class="liveav">'+esc(s.mechAv)+'</div><div><div class="livename">'+esc(s.mechName)+workersHtml+'</div><div class="liveasm">'+esc(s.asmId)+' — '+esc(cfg.name)+'</div></div><div class="livetimer '+(rem>0?'g':'r')+'">'+fmtCD(rem)+'</div></div>'+
       '<div class="livebars">'+
       '<div class="livebar"><div class="lbarlbl">MILNÍKY</div><div class="lbarval '+(msPct===100?'ok':'')+'">'+msDone+'/'+msT+'</div><div class="minibar"><div class="minibarf" style="width:'+msPct+'%"></div></div></div>'+
       '<div class="livebar"><div class="lbarlbl">PROBLÉMY</div><div class="lbarval '+(unres>0?'er':'ok')+'">'+unres+' otevřených</div></div>'+
       '<div class="livebar"><div class="lbarlbl">FOTKY</div><div class="lbarval '+(ph>=(cfg.minPhotos||0)?'ok':'wn')+'">'+ph+(cfg.minPhotos>0?'/'+cfg.minPhotos:'')+'</div></div>'+
       '</div><div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between">'+
-      '<span style="font-size:10px;color:var(--mu);font-family:\'IBM Plex Mono\',monospace">'+esc(s.startedAt)+' · '+(s.isRunning?'<span style="color:var(--ok)">▶ Běží</span>':'<span>⏸ Pauza</span>')+'</span>'+
+      '<span style="font-size:10px;color:var(--mu);font-family:monospace">'+esc(s.startedAt)+' · '+(s.isRunning?'<span style="color:var(--ok)">▶ Běží</span>':'<span>⏸ Pauza</span>')+'</span>'+
       '<button class="btn btn-danger live-del-btn" data-aid="'+s.asmId+'" style="padding:3px 10px;font-size:11px">✕ Smazat session</button>'+
       '</div>';
     (function(asmId){
@@ -4434,7 +4434,7 @@ function buildProjAdmList(){
     row.innerHTML='<div class="pedithdr"><div class="peditname">'+esc(proj.name)+'</div><span class="tag '+(proj.closed?'tag-mu':'tag-ok')+'">'+(proj.closed?'UZAVŘENO':'OTEVŘENO')+'</span></div>'+
       (proj.desc?'<div style="font-size:12px;color:var(--mu);margin-bottom:8px">'+esc(proj.desc)+'</div>':'')+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="flex:1;background:var(--bd);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;background:var(--ok);width:'+prog.pct+'%"></div></div>'+
-      '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--mu)">'+prog.pct+'%</span><span style="font-size:11px;color:var(--mu)">'+prog.done+'/'+prog.total+' sestav</span></div>'+
+      '<span style="font-family:monospace;font-size:11px;color:var(--mu)">'+prog.pct+'%</span><span style="font-size:11px;color:var(--mu)">'+prog.done+'/'+prog.total+' sestav</span></div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
       '<button class="btn btn-ghost" data-a="edit" data-i="'+idx+'" style="padding:5px 10px;font-size:11px">✏ Upravit</button>'+
       '<button class="btn btn-ghost" data-a="prog" data-i="'+idx+'" style="padding:5px 10px;font-size:11px">📊 Postup</button>'+
@@ -4466,14 +4466,14 @@ function calcProjProg(proj){
 function buildProjProgHtml(proj){
   var ids=proj.assemblyIds||[];if(!ids.length)return'<div style="color:var(--mu);font-size:12px">Žádné sestavy</div>';
   var html='<table style="width:100%;border-collapse:collapse">';
-  html+='<tr><th style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">SESTAVA</th><th style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">MILNÍKY</th><th style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">%</th><th style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">MECH.</th></tr>';
+  html+='<tr><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">SESTAVA</th><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">MILNÍKY</th><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">%</th><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">MECH.</th></tr>';
   ids.forEach(function(id){
     var cfg=getAsmCfg(id);var ms=cfg.milestones||[];var s=loadSess(id);
     var d=(s?.milestonesDone||[]).length;var t=ms.length;var pct=t?Math.round(d/t*100):0;var cur=s?(s.currentMs||0):0;
     html+='<tr>'+
-      '<td style="padding:6px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--go)">'+esc(id)+'<br><span style="color:var(--mu);font-size:10px">'+esc(cfg.name)+'</span></td>'+
+      '<td style="padding:6px;font-family:monospace;font-size:11px;color:var(--go)">'+esc(id)+'<br><span style="color:var(--mu);font-size:10px">'+esc(cfg.name)+'</span></td>'+
       '<td style="padding:6px;text-align:center"><span class="tag '+(t&&d>=t?'tag-ok':d>0?'tag-go':'tag-mu')+'">'+d+'/'+t+(t&&d<t?' (ms '+(cur+1)+')':'')+'</span></td>'+
-      '<td style="padding:6px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:'+(pct===100?'var(--ok)':pct>0?'var(--go)':'var(--mu)')+'">'+pct+'%</td>'+
+      '<td style="padding:6px;text-align:center;font-family:monospace;font-size:11px;color:'+(pct===100?'var(--ok)':pct>0?'var(--go)':'var(--mu)')+'">'+pct+'%</td>'+
       '<td style="padding:6px;font-size:11px;color:var(--mu)">'+(s?esc(s.mechName):'—')+'</td></tr>';
   });
   html+='</table>';return html;
@@ -4557,7 +4557,7 @@ function addMsEdRow(list,m,i){
   var idx=i!=null?i:list.children.length;
   var chkId='mschk_'+Date.now()+'_'+idx;
   d.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
-    '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:var(--go)" class="msednum">MILNÍK '+(idx+1)+'</span>'+
+    '<span style="font-family:monospace;font-size:10px;color:var(--go)" class="msednum">MILNÍK '+(idx+1)+'</span>'+
     '<button class="btn btn-danger msedel" style="margin-left:auto;padding:3px 8px;font-size:11px">✕</button></div>'+
     '<div class="afield"><label class="lbl">Název milníku</label><input type="text" class="inp ms-tit" value="'+esc(m.title||'')+'"></div>'+
     '<div class="afield"><label class="lbl">Popis / kroky (každý řádek = krok)</label><textarea class="inp ms-desc" rows="3">'+esc(m.desc||'')+'</textarea></div>'+
