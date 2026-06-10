@@ -193,6 +193,24 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 .logmeta{font-size:12px;color:var(--mu);margin-bottom:8px;}
 .logacts{display:flex;gap:6px;}
 .logbtn{background:transparent;border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer;}.logbtn:hover{border-color:var(--go);color:var(--go);}.logbtn.ph{border-color:var(--ac);color:var(--ac);}
+/* ADMIN REF PHOTOS */
+.ms-ref-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:36px;padding:6px;background:var(--bg);border:1px solid var(--bd);border-radius:7px;}
+.ms-ref-thumb{position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden;flex-shrink:0;}
+.ms-ref-thumb img{width:100%;height:100%;object-fit:cover;}
+.ms-ref-del{position:absolute;top:2px;right:2px;background:rgba(240,82,82,.9);border:none;border-radius:50%;width:18px;height:18px;color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.ms-ref-add{width:64px;height:64px;border-radius:6px;border:1.5px dashed var(--bd);background:none;color:var(--mu);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ms-ref-add:hover{border-color:var(--ac);color:var(--ac);}
+.ms-ref-loading{width:64px;height:64px;border-radius:6px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+/* mechanik - ref photos in milestone viewer */
+.ms-ref-gallery{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.ms-ref-gallery-item{border-radius:8px;overflow:hidden;cursor:pointer;border:1px solid var(--bd);}
+.ms-ref-gallery-item img{display:block;width:120px;height:90px;object-fit:cover;}
+/* fullscreen overlay */
+.photo-fs{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;align-items:center;justify-content:center;}
+.photo-fs.on{display:flex;}
+.photo-fs img{max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px;}
+.photo-fs-close{position:absolute;top:16px;right:16px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;}
+
 /* MODALS */
 .moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:999;align-items:center;justify-content:center;padding:20px;}.moverlay.on{display:flex;}
 .mbox{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:22px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;}
@@ -3753,6 +3771,16 @@ function renderMsViewer(id,cfg){
   var body=document.createElement('div');body.className='msbody';
   if(m.desc&&!(m.steps&&m.steps.length)){var dp=document.createElement('div');dp.className='msdesc';dp.textContent=m.desc;body.appendChild(dp);}
   if(m.steps&&m.steps.length){var sl=document.createElement('div');sl.className='mssteps';m.steps.forEach(function(st,i){var row=document.createElement('div');row.className='msstep';row.innerHTML='<div class="mssn">'+(i+1)+'</div><div class="msst">'+esc(st)+'</div>';sl.appendChild(row);});body.appendChild(sl);}
+  if(m.refPhotos&&m.refPhotos.length){
+    var gal=document.createElement('div');gal.className='ms-ref-gallery';
+    m.refPhotos.forEach(function(url){
+      var item=document.createElement('div');item.className='ms-ref-gallery-item';
+      item.innerHTML='<img src="'+esc(url)+'" loading="lazy">';
+      item.addEventListener('click',function(){showPhotoFs(url);});
+      gal.appendChild(item);
+    });
+    body.appendChild(gal);
+  }
   if(m.requirePhoto){var pr=document.createElement('div');pr.className='msphreq'+(photoMet?' met':'');var newCount=wPhotos.length-baseline;pr.innerHTML=(photoMet?'✓ ':'📷 ')+(photoMet?'Fotografie nahrána ('+newCount+' nových)':'Nahrajte alespoň 1 novou fotografii pro tento milník');body.appendChild(pr);}
   if(!isDone&&canAct){var cb=document.createElement('button');cb.className='msconf';cb.textContent=cur<ms.length-1?'Potvrdit a pokračovat →':'✓ Potvrdit poslední milník';cb.disabled=!canConf;
     (function(c){cb.addEventListener('click',function(){
@@ -4078,6 +4106,14 @@ function doFinish(){
 }
 
 // ═══ ADMIN PANEL ═══
+// ─── FULLSCREEN PHOTO ───
+function showPhotoFs(url){
+  document.getElementById('photoFsImg').src=url;
+  document.getElementById('photoFs').classList.add('on');
+}
+document.getElementById('photoFsClose').addEventListener('click',function(){document.getElementById('photoFs').classList.remove('on');});
+document.getElementById('photoFs').addEventListener('click',function(e){if(e.target===this)this.classList.remove('on');});
+
 // ─── EXPORT / IMPORT CONFIG ───
 function exportConfig(){
   var cfg={version:1,exportedAt:new Date().toLocaleString('cs-CZ'),assemblies:{},projects:getProjects(),mechanics:getMechs()};
@@ -4362,14 +4398,21 @@ function addMsEdRow(list,m,i){
     '<button class="btn btn-danger msedel" style="margin-left:auto;padding:3px 8px;font-size:11px">✕</button></div>'+
     '<div class="afield"><label class="lbl">Název milníku</label><input type="text" class="inp ms-tit" value="'+esc(m.title||'')+'"></div>'+
     '<div class="afield"><label class="lbl">Popis / kroky (každý řádek = krok)</label><textarea class="inp ms-desc" rows="3">'+esc(m.desc||'')+'</textarea></div>'+
+    '<div class="afield"><label class="lbl">Referenční fotky (návod pro mechanika)</label>'+
+    '<div class="ms-ref-photos" id="refph_'+idx+'"></div></div>'+
     '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
     '<input type="checkbox" id="'+chkId+'" class="ms-ph"'+(m.requirePhoto?' checked':'')+'>'+
     '<label for="'+chkId+'" style="font-size:12px;color:var(--mu);cursor:pointer">📷 Podmínka: nahrát fotografii před potvrzením</label></div>';
   d.querySelector('.msedel').addEventListener('click',function(){d.remove();renumMs();});
-  list.appendChild(d);renumMs();
-}
+  list.appendChild(d);
+  initRefPhotos(d,idx,m.refPhotos||[]);
+  renumMs();}
 function renumMs(){document.querySelectorAll('#aeMsList>div').forEach(function(d,i){var n=d.querySelector('.msednum');if(n)n.textContent='MILNÍK '+(i+1);});}
-function collectMsEditor(){return[...document.querySelectorAll('#aeMsList>div')].map(function(d){var desc=d.querySelector('.ms-desc').value.trim();return{title:d.querySelector('.ms-tit').value.trim(),desc:'',requirePhoto:d.querySelector('.ms-ph').checked,steps:desc.split('\n').filter(Boolean)};}).filter(function(m){return m.title;});}
+function collectMsEditor(){return[...document.querySelectorAll('#aeMsList>div')].map(function(d){
+  var desc=d.querySelector('.ms-desc').value.trim();
+  var refUrls=[...d.querySelectorAll('.ms-ref-url')].map(function(el){return el.value;}).filter(Boolean);
+  return{title:d.querySelector('.ms-tit').value.trim(),desc:'',requirePhoto:d.querySelector('.ms-ph').checked,steps:desc.split('\n').filter(Boolean),refPhotos:refUrls};
+}).filter(function(m){return m.title;});}
 function addSimpleRow(cont,val){var d=document.createElement('div');d.className='asteprow';d.innerHTML='<textarea class="inp si" rows="2">'+esc(val)+'</textarea><button class="adelbtn">✕</button>';d.querySelector('.adelbtn').addEventListener('click',function(){d.remove();});cont.appendChild(d);}
 
 // ─── MECHANICS ADMIN ───
@@ -4486,5 +4529,6 @@ function buildLog(){
 
 buildLoginGrid();
 </script>
+<div class="photo-fs" id="photoFs"><button class="photo-fs-close" id="photoFsClose">✕</button><img id="photoFsImg" src=""></div>
 </body>
 </html>
