@@ -193,6 +193,28 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 .logmeta{font-size:12px;color:var(--mu);margin-bottom:8px;}
 .logacts{display:flex;gap:6px;}
 .logbtn{background:transparent;border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer;}.logbtn:hover{border-color:var(--go);color:var(--go);}.logbtn.ph{border-color:var(--ac);color:var(--ac);}
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
+.stat-tile{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center;}
+.stat-tile-val{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--go);line-height:1;}
+.stat-tile-val.ok{color:var(--ok);}.stat-tile-val.er{color:var(--er);}.stat-tile-val.ac{color:var(--ac);}
+.stat-tile-lbl{font-size:11px;color:var(--mu);margin-top:4px;}
+.stat-bar-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--s2);}
+.stat-bar-row:last-child{border-bottom:none;}
+.stat-bar-name{font-size:13px;min-width:120px;}
+.stat-bar-wrap{flex:1;background:var(--bd);border-radius:3px;height:6px;overflow:hidden;}
+.stat-bar-fill{height:100%;border-radius:3px;background:var(--go);}
+.stat-bar-val{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mu);min-width:50px;text-align:right;}
+/* ISSUES BADGE */
+.issues-badge{background:var(--er);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;font-family:'IBM Plex Mono',monospace;margin-left:4px;display:none;}
+.issues-badge.on{display:inline;}
+/* MILESTONE COMMENT */
+.ms-comment-btn{background:none;border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-size:11px;padding:4px 10px;cursor:pointer;margin-top:8px;font-family:'IBM Plex Mono',monospace;}
+.ms-comment-btn:hover{border-color:var(--ac);color:var(--ac);}
+.ms-comment-inp{width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px;color:var(--tx);font-size:13px;font-family:inherit;resize:none;outline:none;}
+.ms-comment-inp:focus{border-color:var(--ac);}
+.ms-comment-saved{background:rgba(34,201,147,.08);border:1px solid rgba(34,201,147,.2);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--ok);margin-top:6px;display:flex;align-items:center;gap:8px;}
+.ms-comment-saved-edit{background:none;border:none;color:var(--mu);font-size:11px;cursor:pointer;margin-left:auto;}
 /* ADMIN REF PHOTOS */
 .ms-ref-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:36px;padding:6px;background:var(--bg);border:1px solid var(--bd);border-radius:7px;}
 .ms-ref-thumb{position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden;flex-shrink:0;}
@@ -294,7 +316,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <button class="anatab" data-ap="aProj">📁 Projekty</button>
 <button class="anatab" data-ap="aAsm">📋 Sestavy</button>
 <button class="anatab" data-ap="aMech">👤 Mechanici</button>
-<button class="anatab" data-ap="aIss">⚠ Problémy</button>
+<button class="anatab" data-ap="aIss">⚠ Problémy<span class="issues-badge" id="issuesBadge"></span></button>
+<button class="anatab" data-ap="aStats">📊 Statistiky</button>
 <button class="anatab" data-ap="aLog">📦 Záznamy</button></div>
 <div style="flex:1;overflow-y:auto">
 <div id="aLive" class="apane on"><div class="liveref" id="liveRef"></div><div id="liveBoard"></div><div class="empty" id="liveEmpty"><div class="empty-ico">📡</div>Žádná probíhající montáž</div></div>
@@ -312,6 +335,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <div id="asmEditArea" style="display:none"></div></div>
 <div id="aMech" class="apane"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:16px;font-weight:600">Mechanici</span><button class="btn btn-ok" id="btnNewMech" style="padding:7px 14px;font-size:12px">+ Přidat</button></div><div id="mechList"></div></div>
 <div id="aIss" class="apane"><div class="ifilter"><button class="fbtn2 on" data-f="all">Vše</button><button class="fbtn2" data-f="open">Otevřené</button><button class="fbtn2" data-f="res">Vyřešené</button><button class="fbtn2" data-f="hi">Vysoká</button><select id="issAsmF" class="inp" style="max-width:140px;padding:4px 8px;font-size:11px"><option value="">Všechny sestavy</option></select></div><div id="admIssList"></div><div class="empty" id="admIssEmpty"><div class="empty-ico">✓</div>Žádné problémy</div></div>
+<div id="aStats" class="apane"><div id="statsContent"></div></div>
 <div id="aLog" class="apane"><div id="logList"></div><div class="empty" id="logEmpty"><div class="empty-ico">📦</div>Žádné záznamy</div></div>
 </div></div>
 
@@ -3579,7 +3603,7 @@ function fmtEl(sec){sec=Math.abs(Math.round(sec));return String(Math.floor(sec/6
 function showScr(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('on');});document.getElementById(id).classList.add('on');}
 function initials(n){return n.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();}
 function uid(){return '_'+Math.random().toString(36).slice(2)+Date.now().toString(36);}
-function saveGI(issue,asmId,mechName){var a=ls('gi',[]);a.push(Object.assign({},issue,{asmId:asmId,mechName:mechName,savedAt:new Date().toLocaleString('cs-CZ')}));lsSet('gi',a);}
+function saveGI(issue,asmId,mechName){var a=ls('gi',[]);a.push(Object.assign({},issue,{asmId:asmId,mechName:mechName,savedAt:new Date().toLocaleString('cs-CZ')}));lsSet('gi',a);updateIssuesBadge();}
 function loadGI(){return ls('gi',[]);}
 function syncGI(upd){var a=loadGI();var i=a.findIndex(function(x){return x.id===upd.id;});if(i>-1){a[i].resolved=upd.resolved;lsSet('gi',a);}}
 
@@ -3753,6 +3777,23 @@ function buildInfoTab(cfg){
 }
 
 // ─── MILESTONE VIEWER ───
+function showCommentForm(body,id,idx,existing){
+  var wrap=document.createElement('div');
+  var ta=document.createElement('textarea');ta.className='ms-comment-inp';ta.rows=2;ta.placeholder='Komentář k tomuto milníku…';ta.value=existing;
+  wrap.appendChild(ta);
+  var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.style.cssText='margin-top:6px;padding:6px 14px;font-size:12px';saveBtn.textContent='Uložit komentář';
+  saveBtn.addEventListener('click',function(){
+    var val=ta.value.trim();
+    var s=loadSess(id);if(!s)return;
+    if(!s.msComments)s.msComments={};
+    if(val)s.msComments[idx]=val;else delete s.msComments[idx];
+    saveSess(id,s);
+    renderMsViewer(id,getAsmCfg(id));
+  });
+  wrap.appendChild(saveBtn);
+  body.appendChild(wrap);
+  ta.focus();
+}
 function renderMsViewer(id,cfg){
   var ms=cfg.milestones||[];
   var pt=document.getElementById('msprgTxt');var dots=document.getElementById('msDots');var viewer=document.getElementById('msViewer');
@@ -3796,10 +3837,21 @@ function renderMsViewer(id,cfg){
     body.appendChild(gal);
   }
   if(m.requirePhoto){var pr=document.createElement('div');pr.className='msphreq'+(photoMet?' met':'');var newCount=wPhotos.length-baseline;pr.innerHTML=(photoMet?'✓ ':'📷 ')+(photoMet?'Fotografie nahrána ('+newCount+' nových)':'Nahrajte alespoň 1 novou fotografii pro tento milník');body.appendChild(pr);}
+  // zobraz uložený komentář
+  var s0b=loadSess(id);var savedComment=(s0b&&s0b.msComments&&s0b.msComments[cur])||'';
+  if(savedComment){
+    var sc=document.createElement('div');sc.className='ms-comment-saved';
+    sc.innerHTML='💬 <span style="flex:1">'+esc(savedComment)+'</span><button class="ms-comment-saved-edit" title="Upravit">✏</button>';
+    sc.querySelector('.ms-comment-saved-edit').addEventListener('click',function(){sc.remove();showCommentForm(body,id,cur,savedComment);});
+    body.appendChild(sc);
+  } else if(isDone){
+    var addCmt=document.createElement('button');addCmt.className='ms-comment-btn';addCmt.textContent='+ Přidat komentář k milníku';
+    addCmt.addEventListener('click',function(){addCmt.remove();showCommentForm(body,id,cur,'');});
+    body.appendChild(addCmt);
+  }
   if(!isDone&&canAct){var cb=document.createElement('button');cb.className='msconf';cb.textContent=cur<ms.length-1?'Potvrdit a pokračovat →':'✓ Potvrdit poslední milník';cb.disabled=!canConf;
     (function(c){cb.addEventListener('click',function(){
       setMsDone(id,c,true);
-      // ulož počet fotek jako baseline pro následující milník
       var s2=loadSess(id);if(s2){if(!s2.msPhotoBaseline)s2.msPhotoBaseline={};s2.msPhotoBaseline[c+1]=wPhotos.length;saveSess(id,s2);}
       if(c<ms.length-1)setCurMs(id,c+1);
       renderMsViewer(id,cfg);updateStats();updateFinishBtn();
@@ -4211,7 +4263,100 @@ function exportApp(){
   alert('Soubor servisapp.html stažen.\n\nNahrajte ho na GitHub do vašeho repository a data budou dostupná všem mechanikům.');
 }
 
-function buildAdmin(){buildAsmSelect();buildMechList();buildProjAdmList();buildLog();
+function buildStats(){
+  var completed=ls('completed',[]);
+  var cont=document.getElementById('statsContent');cont.innerHTML='';
+  var issues=loadGI();
+  var sessions=allSessions();
+
+  // ── Souhrnné tiles ──
+  var totalDone=completed.length;
+  var totalTime=completed.reduce(function(s,r){return s+(r.durationSec||0);},0);
+  var avgTime=totalDone?Math.round(totalTime/totalDone/60):0;
+  var openIssues=issues.filter(function(i){return!i.resolved;}).length;
+  var totalIssues=issues.length;
+  var activeNow=sessions.length;
+
+  var grid=document.createElement('div');grid.className='stat-grid';
+  grid.innerHTML=
+    '<div class="stat-tile"><div class="stat-tile-val ok">'+totalDone+'</div><div class="stat-tile-lbl">Dokončených montáží</div></div>'+
+    '<div class="stat-tile"><div class="stat-tile-val ac">'+activeNow+'</div><div class="stat-tile-lbl">Probíhajících montáží</div></div>'+
+    '<div class="stat-tile"><div class="stat-tile-val">'+avgTime+' min</div><div class="stat-tile-lbl">Průměrný čas montáže</div></div>'+
+    '<div class="stat-tile"><div class="stat-tile-val '+(openIssues>0?'er':'ok')+'">'+openIssues+'</div><div class="stat-tile-lbl">Otevřených problémů</div></div>'+
+    '<div class="stat-tile"><div class="stat-tile-val">'+totalIssues+'</div><div class="stat-tile-lbl">Celkem hlášených problémů</div></div>';
+  cont.appendChild(grid);
+
+  // ── Časy podle sestavy ──
+  if(completed.length){
+    var byAsm={};
+    completed.forEach(function(r){
+      if(!byAsm[r.asmId])byAsm[r.asmId]={name:r.asmName,times:[],count:0};
+      byAsm[r.asmId].times.push(r.durationSec||0);byAsm[r.asmId].count++;
+    });
+    var asmStats=Object.entries(byAsm).map(function(e){
+      var avg=Math.round(e[1].times.reduce(function(a,b){return a+b;},0)/e[1].times.length/60);
+      var cfg=getAsmCfg(e[0]);return{id:e[0],name:e[1].name,avg:avg,count:e[1].count,limit:cfg.estimatedMin};
+    }).sort(function(a,b){return b.count-a.count;});
+    var maxAvg=Math.max(...asmStats.map(function(a){return a.avg;}),1);
+    var h1=document.createElement('div');h1.innerHTML='<div style="font-size:14px;font-weight:600;margin-bottom:10px">Průměrný čas montáže podle sestavy</div>';cont.appendChild(h1);
+    var asmBlock=document.createElement('div');asmBlock.className='acard';
+    asmStats.forEach(function(a){
+      var over=a.avg>a.limit;
+      var row=document.createElement('div');row.className='stat-bar-row';
+      row.innerHTML='<div class="stat-bar-name" style="font-size:12px">'+esc(a.id)+'<br><span style="font-size:10px;color:var(--mu)">'+a.count+'× montáž</span></div>'+
+        '<div class="stat-bar-wrap"><div class="stat-bar-fill" style="width:'+Math.round(a.avg/maxAvg*100)+'%;background:'+(over?'var(--er)':'var(--ok)')+'"></div></div>'+
+        '<div class="stat-bar-val" style="color:'+(over?'var(--er)':'var(--ok)')+'">'+a.avg+' min'+(over?' ⚠':'')+'</div>';
+      asmBlock.appendChild(row);
+    });
+    cont.appendChild(asmBlock);
+  }
+
+  // ── Mechanici ──
+  var byMech={};
+  completed.forEach(function(r){
+    if(!byMech[r.mechanic])byMech[r.mechanic]={count:0,totalSec:0,issues:0};
+    byMech[r.mechanic].count++;byMech[r.mechanic].totalSec+=(r.durationSec||0);
+    byMech[r.mechanic].issues+=r.issues.length;
+  });
+  if(Object.keys(byMech).length){
+    var h2=document.createElement('div');h2.innerHTML='<div style="font-size:14px;font-weight:600;margin:16px 0 10px">Mechanici</div>';cont.appendChild(h2);
+    var mechBlock=document.createElement('div');mechBlock.className='acard';
+    var maxCount=Math.max(...Object.values(byMech).map(function(m){return m.count;}),1);
+    Object.entries(byMech).sort(function(a,b){return b[1].count-a[1].count;}).forEach(function(e){
+      var avg=e[1].count?Math.round(e[1].totalSec/e[1].count/60):0;
+      var row=document.createElement('div');row.className='stat-bar-row';
+      row.innerHTML='<div class="stat-bar-name">'+esc(e[0])+'<br><span style="font-size:10px;color:var(--mu)">⌀ '+avg+' min · ⚠ '+e[1].issues+' prob.</span></div>'+
+        '<div class="stat-bar-wrap"><div class="stat-bar-fill" style="width:'+Math.round(e[1].count/maxCount*100)+'%"></div></div>'+
+        '<div class="stat-bar-val">'+e[1].count+'×</div>';
+      mechBlock.appendChild(row);
+    });
+    cont.appendChild(mechBlock);
+  }
+
+  // ── Nejčastější problémy ──
+  if(issues.length){
+    var h3=document.createElement('div');h3.innerHTML='<div style="font-size:14px;font-weight:600;margin:16px 0 10px">Nejčastější typy problémů</div>';cont.appendChild(h3);
+    var byPri={hi:0,med:0,low:0};
+    issues.forEach(function(i){byPri[i.priority||'low']++;});
+    var priBlock=document.createElement('div');priBlock.className='stat-grid';
+    priBlock.innerHTML=
+      '<div class="stat-tile"><div class="stat-tile-val er">'+byPri.hi+'</div><div class="stat-tile-lbl">Vysoká priorita</div></div>'+
+      '<div class="stat-tile"><div class="stat-tile-val" style="color:var(--go)">'+byPri.med+'</div><div class="stat-tile-lbl">Střední priorita</div></div>'+
+      '<div class="stat-tile"><div class="stat-tile-val gn">'+byPri.low+'</div><div class="stat-tile-lbl">Nízká priorita</div></div>';
+    cont.appendChild(priBlock);
+  }
+
+  if(!completed.length&&!issues.length){cont.innerHTML='<div class="empty"><div class="empty-ico">📊</div>Zatím žádná data. Statistiky se zobrazí po prvních dokončených montážích.</div>';}
+}
+
+function updateIssuesBadge(){
+  var open=loadGI().filter(function(i){return!i.resolved;}).length;
+  var badge=document.getElementById('issuesBadge');
+  if(!badge)return;
+  if(open>0){badge.textContent=open;badge.classList.add('on');}
+  else badge.classList.remove('on');
+}
+function buildAdmin(){buildAsmSelect();buildMechList();buildProjAdmList();buildLog();updateIssuesBadge();
   // wire export/import buttons
   var expBtn=document.getElementById('btnExportCfg');
   if(expBtn)expBtn.onclick=exportConfig;
@@ -4230,12 +4375,13 @@ document.querySelectorAll('.anatab').forEach(function(btn){
     if(btn.dataset.ap==='aLog')buildLog();
     if(btn.dataset.ap==='aProj')buildProjAdmList();
     if(btn.dataset.ap==='aMech')buildMechList();
+    if(btn.dataset.ap==='aStats')buildStats();
   });
 });
 
 // ─── LIVE ───
 var liveIv=null;
-function startLive(){buildLive();liveIv=setInterval(buildLive,5000);}
+function startLive(){buildLive();updateIssuesBadge();liveIv=setInterval(function(){buildLive();updateIssuesBadge();},5000);}
 function stopLive(){clearInterval(liveIv);liveIv=null;}
 function buildLive(){
   // cleanup broken sessions first
@@ -4476,7 +4622,7 @@ function buildAdmIssues(){
 }
 document.querySelectorAll('.ifilter .fbtn2').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.ifilter .fbtn2').forEach(function(x){x.classList.remove('on');});b.classList.add('on');issAdmF=b.dataset.f;renderAdmIssues(loadGI());});});
 document.getElementById('issAsmF').addEventListener('change',function(){issAdmAsm=this.value;renderAdmIssues(loadGI());});
-function renderAdmIssues(all){
+function renderAdmIssues(all){updateIssuesBadge();
   var f=all;
   if(issAdmAsm)f=f.filter(function(i){return i.asmId===issAdmAsm;});
   if(issAdmF==='open')f=f.filter(function(i){return!i.resolved;});
