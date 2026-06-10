@@ -323,6 +323,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <div class="moverlay" id="mProjEdit"><div class="mbox" style="max-width:560px"><h2 id="projEditT">📁 PROJEKT</h2><div class="afield"><label class="lbl">Název</label><input type="text" id="peN" class="inp"></div><div class="afield"><label class="lbl">Popis</label><textarea id="peD" class="inp" rows="2"></textarea></div><div class="afield"><label class="lbl">Sestavy v projektu</label><div class="asmpick" id="pePicker"></div><div style="font-size:10px;color:var(--mu);font-family:'IBM Plex Mono',monospace;margin-top:4px" id="pePickCnt"></div></div><div class="macts"><button class="btn btn-ghost" id="btnPECancel">Zrušit</button><button class="btn btn-adm" id="btnPESave">Uložit projekt</button></div></div></div>
 
 <div class="moverlay" id="mMechEdit"><div class="mbox" style="max-width:400px"><h2 id="mechEditT">👤 MECHANIK</h2><div class="afield"><label class="lbl">Jméno</label><input type="text" id="meN" class="inp"></div><div class="afield"><label class="lbl">PIN (4 číslice)</label><input type="text" id="meP" class="inp" maxlength="4" placeholder="1234"></div><div class="macts"><button class="btn btn-ghost" id="btnMECancel">Zrušit</button><button class="btn btn-adm" id="btnMESave">Uložit</button></div></div></div>
+<div class="photo-fs" id="photoFs"><button class="photo-fs-close" id="photoFsClose">✕</button><img id="photoFsImg" src=""></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 "use strict";
@@ -3679,13 +3680,15 @@ function buildAsmCard(list,id,sess){
   var cfg=getAsmCfg(id);var db=DB.some(function(d){return d.Sestava===id;});
   var isOth=sess&&sess.mechId!==curUser.id;var rem=sess?getSessRem(sess):null;
   var card=document.createElement('div');card.className='acard'+(sess?isOth?' othact':' myact':'');
+  var workers=sess?sess.workers||[]:[];
   card.innerHTML='<div class="acard-id">'+esc(id)+'</div><div class="acard-n">'+esc(cfg.name)+'</div>'+
     '<div class="acard-m"><span class="tag tag-mu">⏱ '+cfg.estimatedMin+' min</span>'+
     (db?'<span class="tag tag-mu">🔩 '+Object.keys(getUniq(id)).length+' dílů</span>':'<span class="tag tag-wn">bez DB</span>')+
     (cfg.minPhotos?'<span class="tag tag-mu">📷 '+cfg.minPhotos+'</span>':'')+
     (sess&&!isOth?'<span class="tag tag-ok">▶ vaše</span>':isOth?'<span class="tag tag-wn">'+esc(sess.mechName)+'</span>':'')+
     (sess?'<span class="stimer '+(rem>0?'g':'r')+'">'+fmtCD(rem)+'</span>':'')+
-    '</div>';
+    '</div>'+
+    (workers.length>1?'<div style="font-size:11px;color:var(--mu);margin-top:5px;font-family:'IBM Plex Mono',monospace">👥 '+workers.map(function(w){return w.name;}).join(', ')+'</div>':'');
   card.addEventListener('click',function(){openWork(id);});
   list.appendChild(card);
 }
@@ -3696,12 +3699,23 @@ function openWork(id){
   curAsmId=id;wPhotos=[];
   var cfg=getAsmCfg(id);
   var sess=loadSess(id);
-  if(!sess){sess={asmId:id,mechId:curUser.id,mechName:curUser.name,mechAv:curUser.av,startedAt:new Date().toLocaleString('cs-CZ'),elapsedSec:0,isRunning:false,startTime:null,checkedParts:{},milestonesDone:[],currentMs:0,issues:[],photoCount:0};saveSess(id,sess);}
+  if(!sess){sess={asmId:id,mechId:curUser.id,mechName:curUser.name,mechAv:curUser.av,startedAt:new Date().toLocaleString('cs-CZ'),elapsedSec:0,isRunning:false,startTime:null,checkedParts:{},milestonesDone:[],currentMs:0,issues:[],photoCount:0,workers:[]};saveSess(id,sess);}
+  // přidej aktuálního mechanika do seznamu workers pokud tam ještě není
+  if(!sess.workers)sess.workers=[];
+  var alreadyIn=sess.workers.some(function(w){return w.id===curUser.id;});
+  if(!alreadyIn){sess.workers.push({id:curUser.id,name:curUser.name,av:curUser.av,joinedAt:new Date().toLocaleString('cs-CZ')});saveSess(id,sess);}
   wIssues=sess.issues||[];
   document.getElementById('wid').textContent=id+' · '+curUser.name;
   document.getElementById('wname').textContent=cfg.name;
   var ob=document.getElementById('obar');
-  if(sess.mechId!==curUser.id){ob.className='obar on';ob.textContent='⚠ Sestavu zahájil: '+sess.mechName;}else ob.className='obar';
+  var workers=sess.workers||[];
+  if(workers.length>1){
+    ob.className='obar on';
+    var names=workers.map(function(w){return w.name;}).join(', ');
+    ob.textContent='👥 Pracovali na sestavě: '+names;
+  } else if(sess.mechId!==curUser.id){
+    ob.className='obar on';ob.textContent='⚠ Sestavu zahájil: '+sess.mechName;
+  } else ob.className='obar';
   clearInterval(timerIv);updateTimer();
   if(sess.isRunning){timerIv=setInterval(function(){updateTimer();updateStats();},1000);document.getElementById('timerTog').textContent='⏸';}
   else document.getElementById('timerTog').textContent='▶';
@@ -4085,6 +4099,7 @@ function doFinish(){
   s.elapsedSec=getSessEl(s);s.isRunning=false;s.startTime=null;
   var photoData=wPhotos.map(function(p){return{src:p.src,name:p.name,time:p.time};});
   var rec={id:uid(),asmId:id,asmName:cfg.name,mechanic:curUser.name,mechAv:curUser.av,
+    workers:s.workers||[],
     duration:fmtEl(s.elapsedSec),durationSec:s.elapsedSec,completedAt:new Date().toLocaleString('cs-CZ'),
     issues:wIssues.map(function(i){return Object.assign({},i);}),photoCount:photoData.length,photoData:photoData};
   var completed=ls('completed',[]);completed.unshift(rec);lsSet('completed',completed);
@@ -4239,7 +4254,9 @@ function buildLive(){
     var ms=cfg.milestones||[];var msDone=(s.milestonesDone||[]).length;var msT=ms.length;var msPct=msT?Math.round(msDone/msT*100):0;
     var unres=(s.issues||[]).filter(function(i){return!i.resolved;}).length;var ph=s.photoCount||0;
     var card=document.createElement('div');card.className='livecard'+(s.isRunning?over?' over':' run':'');
-    card.innerHTML='<div class="livetop"><div class="liveav">'+esc(s.mechAv)+'</div><div><div class="livename">'+esc(s.mechName)+'</div><div class="liveasm">'+esc(s.asmId)+' — '+esc(cfg.name)+'</div></div><div class="livetimer '+(rem>0?'g':'r')+'">'+fmtCD(rem)+'</div></div>'+
+    var liveWorkers=s.workers||[];
+    var workersHtml=liveWorkers.length>1?'<div style="font-size:10px;color:var(--mu);font-family:'IBM Plex Mono',monospace;margin-top:2px">👥 '+liveWorkers.map(function(w){return w.name;}).join(', ')+'</div>':'';
+    card.innerHTML='<div class="livetop"><div class="liveav">'+esc(s.mechAv)+'</div><div><div class="livename">'+esc(s.mechName)+workersHtml+'</div><div class="liveasm">'+esc(s.asmId)+' — '+esc(cfg.name)+'</div></div><div class="livetimer '+(rem>0?'g':'r')+'">'+fmtCD(rem)+'</div></div>'+
       '<div class="livebars">'+
       '<div class="livebar"><div class="lbarlbl">MILNÍKY</div><div class="lbarval '+(msPct===100?'ok':'')+'">'+msDone+'/'+msT+'</div><div class="minibar"><div class="minibarf" style="width:'+msPct+'%"></div></div></div>'+
       '<div class="livebar"><div class="lbarlbl">PROBLÉMY</div><div class="lbarval '+(unres>0?'er':'ok')+'">'+unres+' otevřených</div></div>'+
@@ -4486,8 +4503,9 @@ function buildLog(){
   document.getElementById('logEmpty').style.display=records.length?'none':'block';
   records.forEach(function(rec){
     var d=document.createElement('div');d.className='logrow';
+    var logWorkers=rec.workers&&rec.workers.length>1?rec.workers.map(function(w){return w.name;}).join(', '):rec.mechanic;
     d.innerHTML='<div class="logtit">'+esc(rec.asmId)+' — '+esc(rec.asmName)+'</div>'+
-      '<div class="logmeta">👤 '+esc(rec.mechanic)+' · ⏱ '+esc(rec.duration)+' · 📅 '+esc(rec.completedAt)+' · ⚠ '+rec.issues.length+' prob. · 📷 '+rec.photoCount+'</div>'+
+      '<div class="logmeta">👥 '+esc(logWorkers)+' · ⏱ '+esc(rec.duration)+' · 📅 '+esc(rec.completedAt)+' · ⚠ '+rec.issues.length+' prob. · 📷 '+rec.photoCount+'</div>'+
       '<div class="logacts"><button class="logbtn ph" data-a="ph">📷 Fotky</button><button class="logbtn" data-a="iss">📋 Problémy</button></div>';
     d.querySelectorAll('[data-a]').forEach(function(btn){
       btn.addEventListener('click',function(){
@@ -4529,6 +4547,5 @@ function buildLog(){
 
 buildLoginGrid();
 </script>
-<div class="photo-fs" id="photoFs"><button class="photo-fs-close" id="photoFsClose">✕</button><img id="photoFsImg" src=""></div>
 </body>
 </html>
