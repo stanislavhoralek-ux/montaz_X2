@@ -351,6 +351,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 "use strict";
+var __ORIGINAL_HTML__ = null; // set by export
 const DB = [
   {Cislodilu:"0P11925",Sestava:"21P355",Podsestava:"1",Pozice:"1",Mnozstvi:"1"},
   {Cislodilu:"2513102067",Sestava:"21P355",Podsestava:"1",Pozice:"2",Mnozstvi:"3"},
@@ -4219,48 +4220,62 @@ function importConfig(file){
 }
 
 function exportApp(){
-  // Sesbírej všechna admin data
   var asmConfigs={};
   allAsmIds().forEach(function(id){
     var saved=ls('asm_'+id,null);
-    if(saved)asmConfigs[id]=JSON.stringify(saved);
+    if(saved)asmConfigs[id]=saved;
   });
-  var projects=JSON.stringify(getProjects());
-  var mechanics=JSON.stringify(getMechs());
 
-  // Vezmi aktuální HTML soubor a vlož data jako INIT blok
-  var html=document.documentElement.outerHTML;
+  var data={
+    assemblies: asmConfigs,
+    projects: getProjects(),
+    mechanics: getMechs()
+  };
 
-  // Vygeneruj init skript který se spustí při načtení a nastaví localStorage
-  var initScript='<script id="__init_data__">\n'+
-    '(function(){\n'+
-    '  var asmCfgs='+JSON.stringify(asmConfigs)+';\n'+
-    '  var projs='+projects+';\n'+
-    '  var mechs='+mechanics+';\n'+
-    '  // Nastav jen pokud ještě nejsou lokální data\n'+
-    '  Object.keys(asmCfgs).forEach(function(id){\n'+
-    '    if(!localStorage.getItem("asm_"+id))localStorage.setItem("asm_"+id,asmCfgs[id]);\n'+
-    '  });\n'+
-    '  if(!localStorage.getItem("projects"))localStorage.setItem("projects",JSON.stringify(projs));\n'+
-    '  if(!localStorage.getItem("mechs"))localStorage.setItem("mechs",JSON.stringify(mechs));\n'+
-    '  // Odstraň init script aby se nespustil znovu po importu\n'+
-    '  var el=document.getElementById("__init_data__");\n'+
-    '  if(el)el.remove();\n'+
-    '})();\n'+
-    '<\/script>\n';
+  // Init kód který se vloží do HTML
+  var initCode=[
+    '(function(){',
+    'var d='+JSON.stringify(data)+';',
+    'var a=d.assemblies;',
+    'Object.keys(a).forEach(function(id){',
+    '  if(!localStorage.getItem("asm_"+id))',
+    '    localStorage.setItem("asm_"+id,JSON.stringify(a[id]));',
+    '});',
+    'if(!localStorage.getItem("projects"))',
+    '  localStorage.setItem("projects",JSON.stringify(d.projects));',
+    'if(!localStorage.getItem("mechs"))',
+    '  localStorage.setItem("mechs",JSON.stringify(d.mechanics));',
+    'var el=document.getElementById("__xd__");',
+    'if(el)el.parentNode.removeChild(el);',
+    '})();'
+  ].join('\n');
 
-  // Vlož init script hned za <body>
-  html=html.replace('<body>','<body>\n'+initScript);
-
-  // Stáhni
-  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;
-  a.download='servisapp.html';
-  document.body.appendChild(a);a.click();
-  document.body.removeChild(a);URL.revokeObjectURL(url);
-  alert('Soubor servisapp.html stažen.\n\nNahrajte ho na GitHub do vašeho repository a data budou dostupná všem mechanikům.');
+  // Vezmi HTML - fetch je async ale potřebujeme sync
+  fetch(window.location.href)
+    .then(function(r){return r.text();})
+    .then(function(html){
+      // Odstraň starý init blok pokud existuje
+      var s1=html.indexOf('<script id="__xd__">');
+      if(s1>-1){
+        var s2=html.indexOf('<\/script>',s1);
+        if(s2>-1)html=html.slice(0,s1)+html.slice(s2+9);
+      }
+      // Vlož nový init blok za <body>
+      var initTag='<scr'+'ipt id="__xd__">'+initCode+'<'+'/script>';
+      html=html.replace('<body>','<body>\n'+initTag+'\n');
+      // Stáhni
+      var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;a.download='index.html';
+      document.body.appendChild(a);a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert('index.html stažen. Nahrajte na GitHub.');
+    })
+    .catch(function(){
+      alert('Export selhal - otevřete aplikaci přes GitHub Pages nebo lokální server, ne přes file://');
+    });
 }
 
 function buildStats(){
