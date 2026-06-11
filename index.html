@@ -4479,17 +4479,47 @@ function calcProjProg(proj){
   return{pct:Math.round(done/total*100),done:done,total:total};
 }
 function buildProjProgHtml(proj){
-  var ids=proj.assemblyIds||[];if(!ids.length)return'<div style="color:var(--mu);font-size:12px">Žádné sestavy</div>';
+  var ids=proj.assemblyIds||[];
+  if(!ids.length)return'<div style="color:var(--mu);font-size:12px">Žádné sestavy</div>';
+  // Načti completed záznamy - každá sestava může mít více dokončení, bereme poslední
+  var completed=ls('completed',[]);
+  var lastCompleted={};
+  completed.forEach(function(r){
+    if(!lastCompleted[r.asmId])lastCompleted[r.asmId]=r;
+  });
   var html='<table style="width:100%;border-collapse:collapse">';
-  html+='<tr><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">SESTAVA</th><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">MILNÍKY</th><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">%</th><th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">MECH.</th></tr>';
+  html+='<tr>'+
+    '<th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">SESTAVA</th>'+
+    '<th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">MILNÍKY</th>'+
+    '<th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:center;padding:4px 6px;border-bottom:1px solid var(--bd)">%</th>'+
+    '<th style="font-family:monospace;font-size:9px;color:var(--mu);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd)">MECH.</th></tr>';
   ids.forEach(function(id){
-    var cfg=getAsmCfg(id);var ms=cfg.milestones||[];var s=loadSess(id);
-    var d=(s?.milestonesDone||[]).length;var t=ms.length;var pct=t?Math.round(d/t*100):0;var cur=s?(s.currentMs||0):0;
+    var cfg=getAsmCfg(id);var ms=cfg.milestones||[];var t=ms.length;
+    var sess=loadSess(id);      // aktivní session
+    var rec=lastCompleted[id];  // poslední dokončení
+    var d=0,pct=0,mechName='—',status='tag-mu',statusTxt='',cur=0,isDone=false;
+    if(rec){
+      // Sestava dokončena - 100%
+      d=t;pct=100;mechName=rec.mechanic;isDone=true;
+    } else if(sess){
+      // Sestava rozpracována
+      d=(sess.milestonesDone||[]).length;
+      pct=t?Math.round(d/t*100):0;
+      cur=sess.currentMs||0;
+      mechName=sess.mechName;
+    }
+    status=isDone?'tag-ok':d>0?'tag-go':'tag-mu';
+    statusTxt=isDone?d+'/'+t+' ✓':d+'/'+t+(t&&d<t&&sess?' (ms '+(cur+1)+')':'');
     html+='<tr>'+
-      '<td style="padding:6px;font-family:monospace;font-size:11px;color:var(--go)">'+esc(id)+'<br><span style="color:var(--mu);font-size:10px">'+esc(cfg.name)+'</span></td>'+
-      '<td style="padding:6px;text-align:center"><span class="tag '+(t&&d>=t?'tag-ok':d>0?'tag-go':'tag-mu')+'">'+d+'/'+t+(t&&d<t?' (ms '+(cur+1)+')':'')+'</span></td>'+
-      '<td style="padding:6px;text-align:center;font-family:monospace;font-size:11px;color:'+(pct===100?'var(--ok)':pct>0?'var(--go)':'var(--mu)')+'">'+pct+'%</td>'+
-      '<td style="padding:6px;font-size:11px;color:var(--mu)">'+(s?esc(s.mechName):'—')+'</td></tr>';
+      '<td style="padding:6px;font-family:monospace;font-size:11px;color:var(--go)">'+esc(id)+'<br>'+
+        '<span style="color:var(--mu);font-size:10px">'+esc(cfg.name)+'</span></td>'+
+      '<td style="padding:6px;text-align:center">'+
+        '<span class="tag '+status+'">'+statusTxt+'</span>'+
+        (isDone?'<br><span style="font-size:9px;color:var(--mu)">'+esc(rec.completedAt)+'</span>':'')+
+      '</td>'+
+      '<td style="padding:6px;text-align:center;font-family:monospace;font-size:11px;color:'+
+        (pct===100?'var(--ok)':pct>0?'var(--go)':'var(--mu)')+'">'+pct+'%</td>'+
+      '<td style="padding:6px;font-size:11px;color:var(--mu)">'+esc(mechName)+'</td></tr>';
   });
   html+='</table>';return html;
 }
@@ -4582,9 +4612,72 @@ function addMsEdRow(list,m,i){
     '<input type="checkbox" id="'+chkId+'" class="ms-ph"'+(m.requirePhoto?' checked':'')+'>'+
     '<label for="'+chkId+'" style="font-size:12px;color:var(--mu);cursor:pointer">📷 Podmínka: nahrát fotografii před potvrzením</label></div>';
   d.querySelector('.msedel').addEventListener('click',function(){d.remove();renumMs();});
+  // tlačítko pro vložení nového milníku PŘED tento
+  var insertBtn=document.createElement('button');
+  insertBtn.className='btn btn-ghost';
+  insertBtn.type='button';
+  insertBtn.style.cssText='width:100%;margin-bottom:6px;font-size:11px;padding:4px;color:var(--mu);border-style:dashed;';
+  insertBtn.textContent='+ Vložit milník zde';
+  insertBtn.addEventListener('click',function(){
+    var newRow=document.createElement('div');
+    var curIdx=[...document.getElementById('aeMsList').children].indexOf(d);
+    addMsEdRowBefore(d,{title:'',desc:'',requirePhoto:false},curIdx);
+  });
+  d.insertBefore(insertBtn,d.firstChild);
   list.appendChild(d);
   initRefPhotos(d,idx,m.refPhotos||[]);
   renumMs();}
+function initRefPhotos(container,idx,urls){
+  // Najdi box přímo v containeru - ne přes globální ID
+  var box=container.querySelector('.ms-ref-photos');
+  if(!box)return;
+  box.innerHTML='';
+  (urls||[]).forEach(function(url){addRefThumb(box,url);});
+  var addBtn=document.createElement('button');
+  addBtn.className='ms-ref-add';addBtn.type='button';addBtn.textContent='+';
+  addBtn.title='Přidat referenční fotku';
+  addBtn.addEventListener('click',function(){
+    var input=document.createElement('input');input.type='file';input.accept='image/*';input.multiple=true;
+    input.addEventListener('change',function(){
+      Array.from(input.files).forEach(function(file){
+        var loader=document.createElement('div');loader.className='ms-ref-loading';loader.textContent='⏳';
+        box.insertBefore(loader,addBtn);
+        var fd=new FormData();
+        fd.append('file',file);
+        fd.append('upload_preset','JCEEfactory');
+        fd.append('folder','montaz/admin_ref');
+        fetch('https://api.cloudinary.com/v1_1/dmuvpu0fz/image/upload',{method:'POST',body:fd})
+          .then(function(r){return r.json();})
+          .then(function(data){
+            loader.remove();
+            addRefThumb(box,data.secure_url);
+            box.appendChild(addBtn);
+          })
+          .catch(function(){loader.remove();alert('Chyba nahrávání fotky');});
+      });
+    });
+    input.click();
+  });
+  box.appendChild(addBtn);
+}
+function addRefThumb(box,url){
+  var wrap=document.createElement('div');wrap.className='ms-ref-thumb';
+  wrap.innerHTML='<img src="'+esc(url)+'" style="width:64px;height:64px;object-fit:cover"><button class="ms-ref-del" type="button">✕</button><input type="hidden" class="ms-ref-url" value="'+esc(url)+'">';
+  wrap.querySelector('.ms-ref-del').addEventListener('click',function(){wrap.remove();});
+  box.appendChild(wrap);
+}
+function addMsEdRowBefore(refEl,m,idx){
+  // Vytvoř nový řádek a vlož ho před refEl
+  var list=document.getElementById('aeMsList');
+  var temp=document.createElement('div');
+  list.appendChild(temp); // dočasně přidej aby addMsEdRow fungovalo
+  addMsEdRow(list,m,idx);
+  var newRow=list.lastChild;
+  list.removeChild(newRow);
+  list.removeChild(temp);
+  list.insertBefore(newRow,refEl);
+  renumMs();
+}
 function renumMs(){document.querySelectorAll('#aeMsList>div').forEach(function(d,i){var n=d.querySelector('.msednum');if(n)n.textContent='MILNÍK '+(i+1);});}
 function collectMsEditor(){return[...document.querySelectorAll('#aeMsList>div')].map(function(d){
   var desc=d.querySelector('.ms-desc').value.trim();
