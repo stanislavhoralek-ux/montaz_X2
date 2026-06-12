@@ -193,6 +193,40 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 .logmeta{font-size:12px;color:var(--mu);margin-bottom:8px;}
 .logacts{display:flex;gap:6px;}
 .logbtn{background:transparent;border:1px solid var(--bd);border-radius:6px;color:var(--mu);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer;}.logbtn:hover{border-color:var(--go);color:var(--go);}.logbtn.ph{border-color:var(--ac);color:var(--ac);}
+/* GANTT */
+.gantt-wrap{overflow-x:auto;overflow-y:visible;}
+.gantt-table{border-collapse:collapse;min-width:100%;font-size:12px;}
+.gantt-table th{background:var(--s2);border:1px solid var(--bd);padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mu);white-space:nowrap;position:sticky;top:0;z-index:2;}
+.gantt-table td{border:1px solid var(--bd);padding:0;height:38px;min-width:36px;position:relative;vertical-align:middle;}
+.gantt-mech-cell{background:var(--s2);padding:6px 10px;font-size:13px;font-weight:600;white-space:nowrap;min-width:130px;position:sticky;left:0;z-index:1;}
+.gantt-day-cell{background:var(--s1);cursor:pointer;transition:background .1s;}
+.gantt-day-cell:hover{background:var(--s3);}
+.gantt-day-cell.today{background:rgba(79,142,247,.1);border-color:var(--ac)!important;}
+.gantt-day-cell.weekend{background:var(--bg);cursor:default;}
+.gantt-day-cell.blocked{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 4px,var(--s2) 4px,var(--s2) 8px);cursor:default;}
+.gantt-bar{position:absolute;top:4px;bottom:4px;border-radius:5px;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;cursor:pointer;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:filter .15s;}
+.gantt-bar:hover{filter:brightness(1.15);}
+.gantt-bar.done{opacity:.55;}
+.gantt-bar.overdue{outline:2px solid var(--er);}
+.gantt-header-date{font-family:'IBM Plex Mono',monospace;font-size:9px;text-align:center;display:block;}
+.gantt-header-day{font-size:10px;text-align:center;display:block;color:var(--mu);}
+.gantt-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.gantt-nav-btn{background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--tx);padding:5px 12px;font-size:12px;cursor:pointer;}
+.gantt-nav-btn:hover{border-color:var(--ac);}
+.gantt-period{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--mu);flex:1;text-align:center;}
+.gantt-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--mu);}
+.gantt-legend-item{display:flex;align-items:center;gap:5px;}
+.gantt-legend-color{width:14px;height:10px;border-radius:3px;}
+/* Plan modal */
+.plan-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+/* Mechanic plan view */
+.mplan-week{margin-bottom:16px;}
+.mplan-day{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--s2);}
+.mplan-day:last-child{border-bottom:none;}
+.mplan-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mu);min-width:70px;}
+.mplan-date.today{color:var(--ac);font-weight:700;}
+.mplan-asm{flex:1;font-size:13px;}
+.mplan-blocked{color:var(--mu);font-style:italic;font-size:12px;}
 /* STATS */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
 .stat-tile{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center;}
@@ -313,6 +347,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <div class="atb"><div class="att">ADMIN</div><button class="btn btn-ghost" id="btnAdmOut" style="padding:5px 12px;font-size:12px">← Odhlásit</button></div>
 <div class="anatabs">
 <button class="anatab on" data-ap="aLive">📡 Přehled</button>
+    <button class="anatab" data-ap="aPlan">📅 Plánování</button>
 <button class="anatab" data-ap="aProj">📁 Projekty</button>
 <button class="anatab" data-ap="aAsm">📋 Sestavy</button>
 <button class="anatab" data-ap="aMech">👤 Mechanici</button>
@@ -320,6 +355,24 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <button class="anatab" data-ap="aStats">📊 Statistiky</button>
 <button class="anatab" data-ap="aLog">📦 Záznamy</button></div>
 <div style="flex:1;overflow-y:auto">
+<div id="aPlan" class="apane">
+  <div class="gantt-nav">
+    <button class="gantt-nav-btn" id="ganttPrev">← Předchozí</button>
+    <button class="gantt-nav-btn" id="ganttToday">Dnes</button>
+    <span class="gantt-period" id="ganttPeriod"></span>
+    <button class="gantt-nav-btn" id="ganttNext">Další →</button>
+    <button class="btn btn-ok" id="btnAddPlan" style="padding:5px 12px;font-size:12px">+ Přidat sestavu</button>
+    <button class="btn btn-ghost" id="btnBlockDay" style="padding:5px 12px;font-size:12px">⊘ Blokovat den</button>
+  </div>
+  <div class="gantt-legend">
+    <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:var(--bd);background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 4px,var(--s2) 4px,var(--s2) 8px)"></span>Blokovaný den</span>
+    <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:var(--mu)"></span>Víkend</span>
+    <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:var(--ac)"></span>Plánovaná montáž</span>
+    <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:var(--ok)"></span>Dokončená</span>
+    <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:var(--er)"></span>Po termínu</span>
+  </div>
+  <div class="gantt-wrap"><div id="ganttBoard"></div></div>
+</div>
 <div id="aLive" class="apane on"><div class="liveref" id="liveRef"></div><div id="liveBoard"></div><div class="empty" id="liveEmpty"><div class="empty-ico">📡</div>Žádná probíhající montáž</div></div>
 <div id="aProj" class="apane"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:16px;font-weight:600">Projekty</span><button class="btn btn-ok" id="btnNewProj" style="padding:7px 14px;font-size:12px">+ Nový projekt</button></div><div id="projAdmList"></div><div class="empty" id="projAdmEmpty"><div class="empty-ico">📁</div>Žádné projekty</div></div>
 <div id="aAsm" class="apane">
@@ -372,6 +425,50 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 
 <div class="moverlay" id="mMechEdit"><div class="mbox" style="max-width:400px"><h2 id="mechEditT">👤 MECHANIK</h2><div class="afield"><label class="lbl">Jméno</label><input type="text" id="meN" class="inp"></div><div class="afield"><label class="lbl">PIN (4 číslice)</label><input type="text" id="meP" class="inp" maxlength="4" placeholder="1234"></div><div class="macts"><button class="btn btn-ghost" id="btnMECancel">Zrušit</button><button class="btn btn-adm" id="btnMESave">Uložit</button></div></div></div>
 <div class="photo-fs" id="photoFs"><button class="photo-fs-close" id="photoFsClose">✕</button><img id="photoFsImg" src=""></div>
+
+<!-- PLAN MODALS -->
+<div class="modal-overlay" id="modalPlanAdd">
+  <div class="modal-box" style="max-width:480px">
+    <h2 id="planAddTitle">📅 NAPLÁNOVAT SESTAVU</h2>
+    <div class="plan-modal-grid">
+      <div class="afield"><label class="lbl">Mechanik</label><select id="planMechSel" class="inp"></select></div>
+      <div class="afield"><label class="lbl">Sestava</label><select id="planAsmSel" class="inp"></select></div>
+    </div>
+    <div class="plan-modal-grid">
+      <div class="afield"><label class="lbl">Datum zahájení</label><input type="date" id="planStartDate" class="inp"></div>
+      <div class="afield"><label class="lbl">Datum dokončení</label><input type="date" id="planEndDate" class="inp"></div>
+    </div>
+    <div class="afield"><label class="lbl">Poznámka</label><input type="text" id="planNote" class="inp" placeholder="Volitelná poznámka…"></div>
+    <div style="font-size:11px;color:var(--mu);font-family:monospace;margin-bottom:8px" id="planCalcInfo"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btnPlanDelete" style="margin-right:auto;display:none">🗑 Smazat</button>
+      <button class="btn btn-ghost" id="btnPlanAddCancel">Zrušit</button>
+      <button class="btn btn-adm" id="btnPlanAddSave">Uložit plán</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalBlockDay">
+  <div class="modal-box" style="max-width:400px">
+    <h2>⊘ BLOKOVAT DEN</h2>
+    <div class="plan-modal-grid">
+      <div class="afield"><label class="lbl">Mechanik</label><select id="blockMechSel" class="inp"></select></div>
+      <div class="afield"><label class="lbl">Datum</label><input type="date" id="blockDate" class="inp"></div>
+    </div>
+    <div class="afield"><label class="lbl">Důvod</label>
+      <select id="blockReason" class="inp">
+        <option value="dovolená">Dovolená</option>
+        <option value="nemoc">Nemoc</option>
+        <option value="školení">Školení</option>
+        <option value="státní svátek">Státní svátek</option>
+        <option value="jiné">Jiné</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnBlockCancel">Zrušit</button>
+      <button class="btn btn-adm" id="btnBlockSave">Uložit</button>
+    </div>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 "use strict";
@@ -3737,7 +3834,8 @@ function buildAsmCard(list,id,sess){
     (sess&&!isOth?'<span class="tag tag-ok">▶ vaše</span>':isOth?'<span class="tag tag-wn">'+esc(sess.mechName)+'</span>':'')+
     (sess?'<span class="stimer '+(rem>0?'g':'r')+'">'+fmtCD(rem)+'</span>':'')+
     '</div>'+
-    (workers.length>1?'<div style="font-size:11px;color:var(--mu);margin-top:5px;font-family:monospace">👥 '+workers.map(function(w){return w.name;}).join(', ')+'</div>':'');
+    (workers.length>1?'<div style="font-size:11px;color:var(--mu);margin-top:5px;font-family:monospace">👥 '+workers.map(function(w){return w.name;}).join(', ')+'</div>':'')+
+    (function(){var plans=getPlan();var p=plans.find(function(pl){return pl.asmId===id&&pl.mechId===curUser.id;});return p?'<div style="font-size:11px;color:var(--ac);margin-top:3px;font-family:monospace">📅 Plán: '+p.startDate+' → '+p.endDate+'</div>':'';})();
   card.addEventListener('click',function(){openWork(id);});
   list.appendChild(card);
 }
@@ -4206,6 +4304,286 @@ function showPhotoFs(url){
 document.getElementById('photoFsClose').addEventListener('click',function(){document.getElementById('photoFs').classList.remove('on');});
 document.getElementById('photoFs').addEventListener('click',function(e){if(e.target===this)this.classList.remove('on');});
 
+// ═══════════════════════════════════════
+// PLANNING / GANTT
+// ═══════════════════════════════════════
+var GANTT_DAYS = 28;  // zobrazit 28 dní
+var ganttStartDate = null; // Date objekt
+
+function getPlan(){return ls('plan_items',[]);}
+function savePlan(p){lsSet('plan_items',p);}
+function getBlocks(){return ls('plan_blocks',[]);}
+function saveBlocks(b){lsSet('plan_blocks',b);}
+
+// Barvy pro mechaniky
+var MECH_COLORS=['#4f8ef7','#a78bfa','#22c993','#f0a500','#f05252','#f5a623','#00c8c8','#e879f9'];
+function mechColor(idx){return MECH_COLORS[idx%MECH_COLORS.length];}
+
+// Pomocné datové funkce
+function dateStr(d){return d.toISOString().slice(0,10);}
+function parseDate(s){var p=s.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
+function addDays(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function isWeekend(d){var wd=d.getDay();return wd===0||wd===6;}
+function daysBetween(a,b){return Math.round((b-a)/(1000*60*60*24));}
+function workDaysCount(start,end,blocks,mechId){
+  var count=0;var d=new Date(start);
+  while(d<=end){
+    if(!isWeekend(d)&&!isBlocked(dateStr(d),mechId,blocks))count++;
+    d=addDays(d,1);
+  }
+  return count;
+}
+function isBlocked(ds,mechId,blocks){
+  return (blocks||getBlocks()).some(function(b){return b.date===ds&&(b.mechId===mechId||b.mechId==='all');});
+}
+function calcEndDate(startDate,estimatedMin,mechId){
+  var days=Math.ceil(estimatedMin/420);
+  var workDays=0;var d=new Date(startDate);
+  var blocks=getBlocks();
+  while(workDays<days){
+    if(!isWeekend(d)&&!isBlocked(dateStr(d),mechId,blocks))workDays++;
+    if(workDays<days)d=addDays(d,1);
+  }
+  return d;
+}
+function czDayName(d){return['Ne','Po','Út','St','Čt','Pá','So'][d.getDay()];}
+function czMonthShort(d){return['led','úno','bře','dub','kvě','čvn','čvc','srp','zář','říj','lis','pro'][d.getMonth()];}
+
+function buildGantt(){
+  if(!ganttStartDate){
+    ganttStartDate=new Date();
+    ganttStartDate.setDate(ganttStartDate.getDate()-ganttStartDate.getDay()+1); // pondělí
+    ganttStartDate.setHours(0,0,0,0);
+  }
+  var mechs=getMechs();
+  var plans=getPlan();
+  var blocks=getBlocks();
+  var today=dateStr(new Date());
+  var board=document.getElementById('ganttBoard');
+  board.innerHTML='';
+  // Period label
+  var endDate=addDays(ganttStartDate,GANTT_DAYS-1);
+  document.getElementById('ganttPeriod').textContent=
+    ganttStartDate.getDate()+'. '+czMonthShort(ganttStartDate)+' — '+
+    endDate.getDate()+'. '+czMonthShort(endDate)+' '+endDate.getFullYear();
+  // Build days array
+  var days=[];
+  for(var i=0;i<GANTT_DAYS;i++){days.push(addDays(ganttStartDate,i));}
+  // Table
+  var table=document.createElement('table');table.className='gantt-table';
+  // Header
+  var thead=document.createElement('thead');
+  var tr=document.createElement('tr');
+  var th0=document.createElement('th');th0.textContent='Mechanik';th0.style.minWidth='130px';tr.appendChild(th0);
+  days.forEach(function(d){
+    var th=document.createElement('th');
+    th.innerHTML='<span class="gantt-header-day">'+czDayName(d)+'</span><span class="gantt-header-date">'+d.getDate()+'.'+(d.getMonth()+1)+'.</span>';
+    if(isWeekend(d))th.style.color='var(--bd)';
+    if(dateStr(d)===today)th.style.color='var(--ac)';
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);table.appendChild(thead);
+  // Body
+  var tbody=document.createElement('tbody');
+  mechs.forEach(function(mech,mi){
+    var row=document.createElement('tr');
+    // Mech cell
+    var td0=document.createElement('td');td0.className='gantt-mech-cell';
+    td0.innerHTML='<div style="display:flex;align-items:center;gap:7px"><div style="width:24px;height:24px;border-radius:50%;background:'+mechColor(mi)+';color:#0c0e14;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0">'+esc(mech.av)+'</div><span>'+esc(mech.name)+'</span></div>';
+    row.appendChild(td0);
+    // Day cells
+    days.forEach(function(d){
+      var ds=dateStr(d);var td=document.createElement('td');
+      if(isWeekend(d)){td.className='gantt-day-cell weekend';}
+      else if(isBlocked(ds,mech.id,blocks)){
+        td.className='gantt-day-cell blocked';
+        var bl=blocks.find(function(b){return b.date===ds&&b.mechId===mech.id;});
+        td.title=bl?bl.reason:'Blokovaný den';
+      } else {
+        td.className='gantt-day-cell';
+        if(ds===today)td.classList.add('today');
+        // Click to add plan
+        (function(mechId,startDs){
+          td.addEventListener('click',function(){openPlanModal(null,mechId,startDs);});
+        })(mech.id,ds);
+      }
+      row.appendChild(td);
+    });
+    tbody.appendChild(row);
+    // Render plan bars
+    var mechPlans=plans.filter(function(p){return p.mechId===mech.id;});
+    mechPlans.forEach(function(plan,pi){
+      var cfg=getAsmCfg(plan.asmId);
+      var pStart=parseDate(plan.startDate);
+      var pEnd=parseDate(plan.endDate);
+      var visStart=ganttStartDate;var visEnd=addDays(ganttStartDate,GANTT_DAYS-1);
+      if(pEnd<visStart||pStart>visEnd)return; // mimo zobrazení
+      // Najdi první a poslední buňku
+      var clampedStart=pStart<visStart?visStart:pStart;
+      var clampedEnd=pEnd>visEnd?visEnd:pEnd;
+      var startIdx=daysBetween(ganttStartDate,clampedStart);
+      var endIdx=daysBetween(ganttStartDate,clampedEnd);
+      // Zjisti jestli je sestava dokončena
+      var completed=ls('completed',[]);
+      var isDone=completed.some(function(r){return r.asmId===plan.asmId&&r.mechanic===plan.mechName;});
+      var isOverdue=!isDone&&pEnd<new Date()&&dateStr(pEnd)<today;
+      // Vytvoř bar jako overlay nad buňkami
+      var bar=document.createElement('div');bar.className='gantt-bar'+(isDone?' done':'')+(isOverdue?' overdue':'');
+      var barColor=isDone?'var(--ok)':isOverdue?'var(--er)':mechColor(mi);
+      bar.style.background=barColor;
+      bar.textContent=cfg.name||plan.asmId;
+      bar.title=(cfg.name||plan.asmId)+'\n'+plan.startDate+' → '+plan.endDate+(plan.note?'\n'+plan.note:'');
+      // Pozice: 130px (mech col) + startIdx*36px, šířka = (endIdx-startIdx+1)*36px - 4px
+      var colW=36;var mechColW=130;
+      bar.style.left=(mechColW+1+startIdx*colW+2)+'px';
+      bar.style.width=((endIdx-startIdx+1)*colW-4)+'px';
+      bar.style.top=(mi*(39)+tbody.children.length>1?'4px':'4px');
+      // Klik pro editaci
+      (function(p){bar.addEventListener('click',function(e){e.stopPropagation();openPlanModal(p,p.mechId,p.startDate);});})(plan);
+      board.appendChild(bar);
+    });
+  });
+  table.appendChild(tbody);
+  board.appendChild(table);
+  // Repositioning bars relative to table
+  setTimeout(function(){
+    var bars=board.querySelectorAll('.gantt-bar');
+    var tableRect=board.querySelector('.gantt-table').getBoundingClientRect();
+    var boardRect=board.getBoundingClientRect();
+    var rows=board.querySelectorAll('tbody tr');
+    var plans2=getPlan();
+    bars.forEach(function(bar,bi){
+      // Najdi správný row
+    });
+    // Lepší přístup: umísti bary relativně k tabulce
+    repositionBars(board,plans2,getMechs());
+  },50);
+}
+
+function repositionBars(board,plans,mechs){
+  var tbl=board.querySelector('.gantt-table');if(!tbl)return;
+  var rows=tbl.querySelectorAll('tbody tr');
+  var completed=ls('completed',[]);
+  board.querySelectorAll('.gantt-bar').forEach(function(b){b.remove();});
+  plans.forEach(function(plan){
+    var mi=mechs.findIndex(function(m){return m.id===plan.mechId;});
+    if(mi<0)return;
+    var row=rows[mi];if(!row)return;
+    var cells=row.querySelectorAll('td');
+    var startIdx=daysBetween(ganttStartDate,parseDate(plan.startDate));
+    var endIdx=daysBetween(ganttStartDate,parseDate(plan.endDate));
+    var visEnd=GANTT_DAYS-1;
+    if(endIdx<0||startIdx>visEnd)return;
+    var cStart=Math.max(0,startIdx);var cEnd=Math.min(visEnd,endIdx);
+    var startCell=cells[cStart+1];var endCell=cells[cEnd+1]; // +1 pro mech col
+    if(!startCell||!endCell)return;
+    var startRect=startCell.getBoundingClientRect();
+    var endRect=endCell.getBoundingClientRect();
+    var boardRect=board.getBoundingClientRect();
+    var rowRect=row.getBoundingClientRect();
+    var cfg=getAsmCfg(plan.asmId);
+    var isDone=completed.some(function(r){return r.asmId===plan.asmId;});
+    var today=dateStr(new Date());
+    var isOverdue=!isDone&&plan.endDate<today;
+    var bar=document.createElement('div');bar.className='gantt-bar'+(isDone?' done':'')+(isOverdue?' overdue':'');
+    var barColor=isDone?'#22c993':isOverdue?'#f05252':MECH_COLORS[mi%MECH_COLORS.length];
+    bar.style.cssText='background:'+barColor+';position:absolute;top:'+(rowRect.top-boardRect.top+4)+'px;left:'+(startRect.left-boardRect.left+2)+'px;width:'+(endRect.right-startRect.left-4)+'px;height:'+(rowRect.height-8)+'px;border-radius:5px;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;cursor:pointer;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.3);';
+    bar.textContent=cfg.name||plan.asmId;
+    bar.title=(plan.note?plan.note+'\n':'')+plan.startDate+' → '+plan.endDate;
+    (function(p){bar.addEventListener('click',function(e){e.stopPropagation();openPlanModal(p,p.mechId,p.startDate);});})(plan);
+    board.appendChild(bar);
+  });
+}
+
+// Plan modal
+var editingPlan=null;
+function openPlanModal(plan,mechId,startDs){
+  editingPlan=plan||null;
+  var mechs=getMechs();
+  var mechSel=document.getElementById('planMechSel');
+  mechSel.innerHTML=mechs.map(function(m){return'<option value="'+m.id+'"'+(m.id===mechId?' selected':'')+'>'+esc(m.name)+'</option>';}).join('');
+  var asmSel=document.getElementById('planAsmSel');
+  asmSel.innerHTML=allAsmIds().map(function(id){var cfg=getAsmCfg(id);return'<option value="'+id+'"'+(plan&&plan.asmId===id?' selected':'')+'>'+id+' — '+esc(cfg.name)+'</option>';}).join('');
+  document.getElementById('planStartDate').value=plan?plan.startDate:(startDs||dateStr(new Date()));
+  document.getElementById('planEndDate').value=plan?plan.endDate:'';
+  document.getElementById('planNote').value=plan?plan.note||'':'';
+  document.getElementById('planAddTitle').textContent=plan?'📅 UPRAVIT PLÁN':'📅 NAPLÁNOVAT SESTAVU';
+  document.getElementById('btnPlanDelete').style.display=plan?'inline-flex':'none';
+  updatePlanCalc();
+  document.getElementById('modalPlanAdd').classList.add('on');
+}
+function updatePlanCalc(){
+  var mechId=document.getElementById('planMechSel').value;
+  var asmId=document.getElementById('planAsmSel').value;
+  var startDs=document.getElementById('planStartDate').value;
+  var info=document.getElementById('planCalcInfo');
+  if(!asmId||!startDs){info.textContent='';return;}
+  var cfg=getAsmCfg(asmId);
+  var days=Math.ceil((cfg.estimatedMin||120)/420);
+  var endDate=calcEndDate(parseDate(startDs),cfg.estimatedMin||120,mechId);
+  info.textContent='Odhadovaná délka: '+days+' pracovní den/dní → dokončení: '+dateStr(endDate);
+  if(!document.getElementById('planEndDate').value){
+    document.getElementById('planEndDate').value=dateStr(endDate);
+  }
+}
+['planMechSel','planAsmSel','planStartDate'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el)el.addEventListener('change',updatePlanCalc);
+});
+document.getElementById('btnPlanAddCancel').addEventListener('click',function(){document.getElementById('modalPlanAdd').classList.remove('on');});
+document.getElementById('btnPlanDelete').addEventListener('click',function(){
+  if(!editingPlan)return;
+  if(confirm('Smazat tento plán?')){
+    var plans=getPlan().filter(function(p){return p.id!==editingPlan.id;});
+    savePlan(plans);document.getElementById('modalPlanAdd').classList.remove('on');buildGantt();
+  }
+});
+document.getElementById('btnPlanAddSave').addEventListener('click',function(){
+  var mechId=document.getElementById('planMechSel').value;
+  var asmId=document.getElementById('planAsmSel').value;
+  var startDs=document.getElementById('planStartDate').value;
+  var endDs=document.getElementById('planEndDate').value;
+  var note=document.getElementById('planNote').value.trim();
+  if(!mechId||!asmId||!startDs||!endDs){alert('Vyplňte všechna povinná pole');return;}
+  var mechs=getMechs();var mech=mechs.find(function(m){return m.id===mechId;});
+  var plans=getPlan();
+  if(editingPlan){
+    var idx=plans.findIndex(function(p){return p.id===editingPlan.id;});
+    if(idx>-1){plans[idx].mechId=mechId;plans[idx].mechName=mech?mech.name:'';plans[idx].asmId=asmId;plans[idx].startDate=startDs;plans[idx].endDate=endDs;plans[idx].note=note;}
+  } else {
+    plans.push({id:uid(),mechId:mechId,mechName:mech?mech.name:'',asmId:asmId,startDate:startDs,endDate:endDs,note:note});
+  }
+  savePlan(plans);document.getElementById('modalPlanAdd').classList.remove('on');buildGantt();
+});
+
+// Block day modal
+document.getElementById('btnBlockDay').addEventListener('click',function(){
+  var mechs=getMechs();
+  document.getElementById('blockMechSel').innerHTML=
+    '<option value="all">Všichni mechanici</option>'+
+    mechs.map(function(m){return'<option value="'+m.id+'">'+esc(m.name)+'</option>';}).join('');
+  document.getElementById('blockDate').value=dateStr(new Date());
+  document.getElementById('modalBlockDay').classList.add('on');
+});
+document.getElementById('btnBlockCancel').addEventListener('click',function(){document.getElementById('modalBlockDay').classList.remove('on');});
+document.getElementById('btnBlockSave').addEventListener('click',function(){
+  var mechId=document.getElementById('blockMechSel').value;
+  var date=document.getElementById('blockDate').value;
+  var reason=document.getElementById('blockReason').value;
+  if(!date)return;
+  var blocks=getBlocks();
+  // Odstraň duplicitu
+  blocks=blocks.filter(function(b){return!(b.mechId===mechId&&b.date===date);});
+  blocks.push({id:uid(),mechId:mechId,date:date,reason:reason});
+  saveBlocks(blocks);document.getElementById('modalBlockDay').classList.remove('on');buildGantt();
+});
+
+// Gantt navigation
+document.getElementById('ganttPrev').addEventListener('click',function(){ganttStartDate=addDays(ganttStartDate,-14);buildGantt();});
+document.getElementById('ganttNext').addEventListener('click',function(){ganttStartDate=addDays(ganttStartDate,14);buildGantt();});
+document.getElementById('ganttToday').addEventListener('click',function(){ganttStartDate=null;buildGantt();});
+document.getElementById('btnAddPlan').addEventListener('click',function(){openPlanModal(null,null,dateStr(new Date()));});
+
 // ─── EXPORT / IMPORT CONFIG ───
 function exportConfig(){
   var cfg={version:1,exportedAt:new Date().toLocaleString('cs-CZ'),assemblies:{},projects:getProjects(),mechanics:getMechs()};
@@ -4427,6 +4805,7 @@ document.querySelectorAll('.anatab').forEach(function(btn){
     if(btn.dataset.ap==='aProj')buildProjAdmList();
     if(btn.dataset.ap==='aMech')buildMechList();
     if(btn.dataset.ap==='aStats')buildStats();
+    if(btn.dataset.ap==='aPlan'){buildGantt();}
   });
 });
 
