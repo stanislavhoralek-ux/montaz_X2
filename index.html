@@ -334,33 +334,9 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 </div>
 <div id="asmEditArea" style="display:none"></div></div>
 <div id="aMech" class="apane"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:16px;font-weight:600">Mechanici</span><button class="btn btn-ok" id="btnNewMech" style="padding:7px 14px;font-size:12px">+ Přidat</button></div><div id="mechList"></div></div>
-<div id="aIss" class="apane">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-    <span style="font-size:15px;font-weight:600">Hlášené problémy</span>
-    <div style="display:flex;gap:6px">
-      <button class="btn btn-ghost" id="btnClearResolvedIss" style="padding:6px 12px;font-size:12px">🗑 Smazat vyřešené</button>
-      <button class="btn btn-danger" id="btnClearAllIss" style="padding:6px 12px;font-size:12px">🗑 Smazat vše</button>
-    </div>
-  </div>
-  <div class="ifilter"><button class="fbtn2 on" data-f="all">Vše</button><button class="fbtn2" data-f="open">Otevřené</button><button class="fbtn2" data-f="res">Vyřešené</button><button class="fbtn2" data-f="hi">Vysoká</button><select id="issAsmF" class="inp" style="max-width:140px;padding:4px 8px;font-size:11px"><option value="">Všechny sestavy</option></select></div>
-  <div id="admIssList"></div>
-  <div class="empty" id="admIssEmpty"><div class="empty-ico">✓</div>Žádné problémy</div>
-</div>
-<div id="aStats" class="apane">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-    <span style="font-size:15px;font-weight:600">Statistiky</span>
-    <button class="btn btn-danger" id="btnResetStats" style="padding:6px 14px;font-size:12px">↺ Vynulovat statistiky</button>
-  </div>
-  <div id="statsContent"></div>
-</div>
-<div id="aLog" class="apane">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-    <span style="font-size:15px;font-weight:600">Záznamy dokončených montáží</span>
-    <button class="btn btn-danger" id="btnClearLog" style="padding:6px 14px;font-size:12px">🗑 Smazat všechny záznamy</button>
-  </div>
-  <div id="logList"></div>
-  <div class="empty" id="logEmpty"><div class="empty-ico">📦</div>Žádné záznamy</div>
-</div>
+<div id="aIss" class="apane"><div class="ifilter"><button class="fbtn2 on" data-f="all">Vše</button><button class="fbtn2" data-f="open">Otevřené</button><button class="fbtn2" data-f="res">Vyřešené</button><button class="fbtn2" data-f="hi">Vysoká</button><select id="issAsmF" class="inp" style="max-width:140px;padding:4px 8px;font-size:11px"><option value="">Všechny sestavy</option></select></div><div id="admIssList"></div><div class="empty" id="admIssEmpty"><div class="empty-ico">✓</div>Žádné problémy</div></div>
+<div id="aStats" class="apane"><div id="statsContent"></div></div>
+<div id="aLog" class="apane"><div id="logList"></div><div class="empty" id="logEmpty"><div class="empty-ico">📦</div>Žádné záznamy</div></div>
 </div></div>
 
 <!-- MODALS -->
@@ -4403,18 +4379,6 @@ function buildAdmin(){buildAsmSelect();buildMechList();buildProjAdmList();buildL
   if(expApp)expApp.onclick=exportApp;
   var impFile=document.getElementById('importCfgFile');
   if(impFile)impFile.onchange=function(){if(this.files[0]){importConfig(this.files[0]);this.value='';}};
-  // Smazat záznamy
-  var btnCL=document.getElementById('btnClearLog');
-  if(btnCL)btnCL.onclick=function(){if(confirm('Smazat všechny záznamy?\nAkce je nevratná.')){lsSet('completed',[]);buildLog();buildStats();}};
-  // Smazat vyřešené problémy
-  var btnCR=document.getElementById('btnClearResolvedIss');
-  if(btnCR)btnCR.onclick=function(){if(confirm('Smazat vyřešené problémy?')){lsSet('gi',loadGI().filter(function(i){return!i.resolved;}));buildAdmIssues();updateIssuesBadge();}};
-  // Smazat všechny problémy
-  var btnCA=document.getElementById('btnClearAllIss');
-  if(btnCA)btnCA.onclick=function(){if(confirm('Smazat VŠECHNY problémy?\nAkce je nevratná.')){lsSet('gi',[]);buildAdmIssues();updateIssuesBadge();}};
-  // Vynulovat statistiky
-  var btnRS=document.getElementById('btnResetStats');
-  if(btnRS)btnRS.onclick=function(){if(confirm('Vynulovat statistiky?\nSmaže historii dokončených montáží.')){lsSet('completed',[]);buildStats();buildLog();}};
 }
 document.querySelectorAll('.anatab').forEach(function(btn){
   btn.addEventListener('click',function(){
