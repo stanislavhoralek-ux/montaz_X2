@@ -4605,7 +4605,7 @@ function addMsEdRow(list,m,i){
     '<span style="font-family:monospace;font-size:10px;color:var(--go)" class="msednum">MILNÍK '+(idx+1)+'</span>'+
     '<button class="btn btn-danger msedel" style="margin-left:auto;padding:3px 8px;font-size:11px">✕</button></div>'+
     '<div class="afield"><label class="lbl">Název milníku</label><input type="text" class="inp ms-tit" value="'+esc(m.title||'')+'"></div>'+
-    '<div class="afield"><label class="lbl">Popis / kroky (každý řádek = krok)</label><textarea class="inp ms-desc" rows="3">'+esc(m.desc||'')+'</textarea></div>'+
+    '<div class="afield"><label class="lbl">Popis / kroky (každý řádek = krok)</label><textarea class="inp ms-desc" rows="3">'+esc((m.steps&&m.steps.length)?m.steps.join('\n'):(m.desc||''))+'</textarea></div>'+
     '<div class="afield"><label class="lbl">Referenční fotky (návod pro mechanika)</label>'+
     '<div class="ms-ref-photos" id="refph_'+idx+'"></div></div>'+
     '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
