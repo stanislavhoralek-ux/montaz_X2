@@ -320,7 +320,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <button class="anatab" data-ap="aStats">📊 Statistiky</button>
 <button class="anatab" data-ap="aLog">📦 Záznamy</button></div>
 <div style="flex:1;overflow-y:auto">
-<div id="aLive" class="apane on"><div class="liveref" id="liveRef"></div><div id="liveBoard"></div><div class="empty" id="liveEmpty"><div class="empty-ico">📡</div>Žádná probíhající montáž</div></div>
+<div id="aLive" class="apane on"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="liveref" id="liveRef" style="margin-bottom:0"></div><button class="btn btn-ghost" id="btnSyncNow" style="padding:4px 12px;font-size:11px;margin-left:auto">🔄 Obnovit data</button></div><div id="liveBoard"></div><div class="empty" id="liveEmpty"><div class="empty-ico">📡</div>Žádná probíhající montáž</div></div>
 <div id="aProj" class="apane"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:16px;font-weight:600">Projekty</span><button class="btn btn-ok" id="btnNewProj" style="padding:7px 14px;font-size:12px">+ Nový projekt</button></div><div id="projAdmList"></div><div class="empty" id="projAdmEmpty"><div class="empty-ico">📁</div>Žádné projekty</div></div>
 <div id="aAsm" class="apane">
 <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
@@ -375,6 +375,84 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-si
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 "use strict";
+// ════════════════════════════════════════
+// SUPABASE CONFIG & SYNC LAYER
+// ════════════════════════════════════════
+const SB_URL='https://sjaptutrezivmkknjmnm.supabase.co/rest/v1';
+const SB_KEY='sb_publishable_bhADUycIoS9wbyNxxjYsZQ_F_c5D8mU';
+const SB_HEADERS={
+  'apikey': SB_KEY,
+  'Authorization': 'Bearer '+SB_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'resolution=merge-duplicates'
+};
+
+function sbGet(table, query){
+  return fetch(SB_URL+'/'+table+(query||''), {headers: SB_HEADERS})
+    .then(function(r){ if(!r.ok) throw new Error('sbGet '+table+' failed: '+r.status); return r.json(); })
+    .catch(function(e){ console.error('sbGet error:', e); return []; });
+}
+function sbUpsert(table, rows){
+  return fetch(SB_URL+'/'+table, {
+    method:'POST',
+    headers: SB_HEADERS,
+    body: JSON.stringify(Array.isArray(rows)?rows:[rows])
+  }).catch(function(e){ console.error('sbUpsert error:', e); });
+}
+function sbDelete(table, column, value){
+  return fetch(SB_URL+'/'+table+'?'+column+'=eq.'+encodeURIComponent(value), {
+    method:'DELETE', headers: SB_HEADERS
+  }).catch(function(e){ console.error('sbDelete error:', e); });
+}
+
+// Konverze mezi JS camelCase a DB snake_case pro jednotlivé tabulky
+function mechToDb(m){ return {id:m.id, name:m.name, pin:m.pin, av:m.av}; }
+function mechFromDb(r){ return {id:r.id, name:r.name, pin:r.pin, av:r.av}; }
+
+function projToDb(p){ return {id:p.id, name:p.name, description:p.desc||'', assembly_ids:p.assemblyIds||[], closed:!!p.closed}; }
+function projFromDb(r){ return {id:r.id, name:r.name, desc:r.description||'', assemblyIds:r.assembly_ids||[], closed:!!r.closed, createdAt:r.created_at?new Date(r.created_at).toLocaleDateString('cs-CZ'):''}; }
+
+function asmCfgToDb(id,c){ return {id:id, name:c.name, estimated_min:c.estimatedMin, milestones:c.milestones||[], warnings:c.warnings||[], min_photos:c.minPhotos||0, photo_desc:c.photoDesc||'', doc_url:c.docUrl||'', doc_note:c.docNote||''}; }
+function asmCfgFromDb(r){ return {id:r.id, name:r.name, estimatedMin:r.estimated_min, milestones:r.milestones||[], warnings:r.warnings||[], minPhotos:r.min_photos||0, photoDesc:r.photo_desc||'', docUrl:r.doc_url||'', docNote:r.doc_note||''}; }
+
+function sessToDb(s){ return {asm_id:s.asmId, mech_id:s.mechId, mech_name:s.mechName, mech_av:s.mechAv, started_at:s.startedAt, elapsed_sec:s.elapsedSec||0, is_running:!!s.isRunning, start_time:s.startTime||null, checked_parts:s.checkedParts||{}, milestones_done:s.milestonesDone||[], current_ms:s.currentMs||0, ms_photo_baseline:s.msPhotoBaseline||{}, ms_comments:s.msComments||{}, issues:s.issues||[], photo_count:s.photoCount||0, workers:s.workers||[]}; }
+function sessFromDb(r){ return {asmId:r.asm_id, mechId:r.mech_id, mechName:r.mech_name, mechAv:r.mech_av, startedAt:r.started_at, elapsedSec:r.elapsed_sec||0, isRunning:!!r.is_running, startTime:r.start_time, checkedParts:r.checked_parts||{}, milestonesDone:r.milestones_done||[], currentMs:r.current_ms||0, msPhotoBaseline:r.ms_photo_baseline||{}, msComments:r.ms_comments||{}, issues:r.issues||[], photoCount:r.photo_count||0, workers:r.workers||[]}; }
+
+function issueToDb(i){ return {id:i.id, asm_id:i.asmId, mech_name:i.mechName, text:i.text, priority:i.priority||'low', resolved:!!i.resolved, time:i.time, created_at:i.createdAt, saved_at:i.savedAt}; }
+function issueFromDb(r){ return {id:r.id, asmId:r.asm_id, mechName:r.mech_name, text:r.text, priority:r.priority||'low', resolved:!!r.resolved, time:r.time, createdAt:r.created_at, savedAt:r.saved_at}; }
+
+function compToDb(r){ return {id:r.id, asm_id:r.asmId, asm_name:r.asmName, mechanic:r.mechanic, mech_av:r.mechAv, workers:r.workers||[], duration:r.duration, duration_sec:r.durationSec, completed_at:r.completedAt, issues:r.issues||[], photo_count:r.photoCount||0, photo_data:r.photoData||[]}; }
+function compFromDb(r){ return {id:r.id, asmId:r.asm_id, asmName:r.asm_name, mechanic:r.mechanic, mechAv:r.mech_av, workers:r.workers||[], duration:r.duration, durationSec:r.duration_sec, completedAt:r.completed_at, issues:r.issues||[], photoCount:r.photo_count||0, photoData:r.photo_data||[]}; }
+
+// Stáhni VŠE ze Supabase do localStorage (volá se při startu)
+async function syncFromSupabase(){
+  try{
+    var mechs=await sbGet('mechanics');
+    if(mechs&&mechs.length)localStorage.setItem('mechs',JSON.stringify(mechs.map(mechFromDb)));
+
+    var projs=await sbGet('projects');
+    if(projs)localStorage.setItem('projects',JSON.stringify(projs.map(projFromDb)));
+
+    var asmCfgs=await sbGet('assembly_configs');
+    if(asmCfgs){asmCfgs.forEach(function(r){localStorage.setItem('asm_'+r.id,JSON.stringify(asmCfgFromDb(r)));});}
+
+    var sessions=await sbGet('sessions');
+    if(sessions){
+      // smaž staré lokální sessions a nahraj aktuální z DB
+      Object.keys(localStorage).filter(function(k){return k.indexOf('sess_')===0;}).forEach(function(k){localStorage.removeItem(k);});
+      sessions.forEach(function(r){localStorage.setItem('sess_'+r.asm_id,JSON.stringify(sessFromDb(r)));});
+    }
+
+    var issues=await sbGet('issues');
+    if(issues)localStorage.setItem('gi',JSON.stringify(issues.map(issueFromDb)));
+
+    var completed=await sbGet('completed','?order=created_at.desc');
+    if(completed)localStorage.setItem('completed',JSON.stringify(completed.map(compFromDb)));
+  }catch(e){
+    console.error('syncFromSupabase failed:', e);
+  }
+}
+
 var __ORIGINAL_HTML__ = null; // set by export
 const DB = [
   {Cislodilu:"0P11925",Sestava:"21P355",Podsestava:"1",Pozice:"1",Mnozstvi:"1"},
@@ -3593,18 +3671,18 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 // ═══ DATA ═══
 function defMechs(){return[{id:'m1',name:'Jan Novák',pin:'1234',av:'JN'},{id:'m2',name:'Petr Svoboda',pin:'5678',av:'PS'},{id:'m3',name:'Martin Dvořák',pin:'9012',av:'MD'},{id:'m4',name:'Tomáš Kratochvíl',pin:'3456',av:'TK'},{id:'m5',name:'Karel Horáček',pin:'7890',av:'KH'},{id:'m6',name:'Pavel Marek',pin:'2345',av:'PM'},{id:'m7',name:'Jiří Vlček',pin:'6789',av:'JV'},{id:'m8',name:'Ondřej Beneš',pin:'0123',av:'OB'}];}
 function getMechs(){return ls('mechs',defMechs());}
-function saveMechs(m){lsSet('mechs',m);}
+function saveMechs(m){lsSet('mechs',m);sbUpsert('mechanics',m.map(mechToDb));}
 function getProjects(){return ls('projects',[]);}
-function saveProjects(p){lsSet('projects',p);}
+function saveProjects(p){lsSet('projects',p);sbUpsert('projects',p.map(projToDb));}
 function getAsmCfg(id){var d={id:id,name:'Sestava '+id,estimatedMin:120,milestones:[],warnings:[],minPhotos:0,photoDesc:'',docUrl:'',docNote:''};return Object.assign({},d,ls('asm_'+id,{}));}
-function saveAsmCfg(id,c){lsSet('asm_'+id,c);}
+function saveAsmCfg(id,c){lsSet('asm_'+id,c);sbUpsert('assembly_configs',asmCfgToDb(id,c));}
 function allAsmIds(){return[...new Set(DB.map(function(d){return d.Sestava;}))].sort();}
 function getUniq(id){var u={};DB.filter(function(d){return d.Sestava===id;}).forEach(function(p){if(!u[p.Cislodilu])u[p.Cislodilu]=[];u[p.Cislodilu].push(p);});return u;}
 
 // ═══ SESSIONS ═══
 function loadSess(id){return ls('sess_'+id,null);}
-function saveSess(id,s){lsSet('sess_'+id,s);}
-function delSess(id){localStorage.removeItem('sess_'+id);}
+function saveSess(id,s){lsSet('sess_'+id,s);sbUpsert('sessions',sessToDb(s));}
+function delSess(id){localStorage.removeItem('sess_'+id);sbDelete('sessions','asm_id',id);}
 function allSessions(){return allAsmIds().map(function(id){return loadSess(id);}).filter(Boolean);}
 function getSessEl(s){var e=s.elapsedSec||0;if(s.isRunning&&s.startTime)e+=Math.floor((Date.now()-s.startTime)/1000);return e;}
 function getSessRem(s){return getAsmCfg(s.asmId).estimatedMin*60-getSessEl(s);}
@@ -3628,9 +3706,9 @@ function fmtEl(sec){sec=Math.abs(Math.round(sec));return String(Math.floor(sec/6
 function showScr(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('on');});document.getElementById(id).classList.add('on');}
 function initials(n){return n.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();}
 function uid(){return '_'+Math.random().toString(36).slice(2)+Date.now().toString(36);}
-function saveGI(issue,asmId,mechName){var a=ls('gi',[]);a.push(Object.assign({},issue,{asmId:asmId,mechName:mechName,savedAt:new Date().toLocaleString('cs-CZ')}));lsSet('gi',a);updateIssuesBadge();}
+function saveGI(issue,asmId,mechName){var a=ls('gi',[]);var full=Object.assign({},issue,{asmId:asmId,mechName:mechName,savedAt:new Date().toLocaleString('cs-CZ')});a.push(full);lsSet('gi',a);updateIssuesBadge();sbUpsert('issues',issueToDb(full));}
 function loadGI(){return ls('gi',[]);}
-function syncGI(upd){var a=loadGI();var i=a.findIndex(function(x){return x.id===upd.id;});if(i>-1){a[i].resolved=upd.resolved;lsSet('gi',a);}}
+function syncGI(upd){var a=loadGI();var i=a.findIndex(function(x){return x.id===upd.id;});if(i>-1){a[i].resolved=upd.resolved;lsSet('gi',a);sbUpsert('issues',issueToDb(a[i]));}}
 
 // ═══ LOGIN ═══
 function buildLoginGrid(){
@@ -3663,7 +3741,9 @@ document.getElementById('btnLogin').addEventListener('click',function(){
     document.getElementById('projAv').textContent=curUser.av;
     document.getElementById('projNm').textContent=curUser.name;
     document.getElementById('asmAv').textContent=curUser.av;
-    buildProjScr();showScr('s-project');
+    showScr('s-project');
+    document.getElementById('projectList').innerHTML='<div class="empty"><div class="empty-ico">⏳</div>Načítám data…</div>';
+    syncFromSupabase().then(function(){buildProjScr();});
   } else {
     document.getElementById('pinErr').style.display='block';
     document.getElementById('pinI').classList.add('err');
@@ -3679,7 +3759,9 @@ document.getElementById('btnAdmCancel').addEventListener('click',function(){docu
 document.getElementById('admPw').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('btnAdmLogin').click();});
 document.getElementById('btnAdmLogin').addEventListener('click',function(){
   if(document.getElementById('admPw').value===ADMIN_PASS){
-    document.getElementById('mAdmLogin').classList.remove('on');buildAdmin();showScr('s-admin');startLive();
+    document.getElementById('mAdmLogin').classList.remove('on');
+    showScr('s-admin');
+    syncFromSupabase().then(function(){buildAdmin();startLive();});
   } else {document.getElementById('admPwErr').style.display='block';document.getElementById('admPw').value='';}
 });
 document.getElementById('btnAdmOut').addEventListener('click',function(){stopLive();doLogout();});
@@ -4179,7 +4261,7 @@ function doFinish(){
     workers:s.workers||[],
     duration:fmtEl(s.elapsedSec),durationSec:s.elapsedSec,completedAt:new Date().toLocaleString('cs-CZ'),
     issues:wIssues.map(function(i){return Object.assign({},i);}),photoCount:photoData.length,photoData:photoData};
-  var completed=ls('completed',[]);completed.unshift(rec);lsSet('completed',completed);
+  var completed=ls('completed',[]);completed.unshift(rec);lsSet('completed',completed);sbUpsert('completed',compToDb(rec));
   delSess(id);clearInterval(timerIv);timerIv=null;stopCam();
   curAsmId=null;wPhotos=[];wIssues=[];
   if(photoData.length>0){
@@ -4250,25 +4332,31 @@ function exportApp(){
     if(saved)asmConfigs[id]=saved;
   });
 
+  var exportVersion=Date.now(); // verze exportu - novější přepíše starší
+
   var data={
     assemblies: asmConfigs,
     projects: getProjects(),
-    mechanics: getMechs()
+    mechanics: getMechs(),
+    version: exportVersion
   };
 
   // Init kód který se vloží do HTML
+  // Přepíše admin data VŽDY pokud je tato verze novější než ta uložená v zařízení
+  // (data mechaniků - sess_*, completed, gi - se NIKDY nepřepisují)
   var initCode=[
     '(function(){',
     'var d='+JSON.stringify(data)+';',
-    'var a=d.assemblies;',
-    'Object.keys(a).forEach(function(id){',
-    '  if(!localStorage.getItem("asm_"+id))',
+    'var localVer=parseInt(localStorage.getItem("__data_version__")||"0");',
+    'if(d.version>localVer){',
+    '  var a=d.assemblies;',
+    '  Object.keys(a).forEach(function(id){',
     '    localStorage.setItem("asm_"+id,JSON.stringify(a[id]));',
-    '});',
-    'if(!localStorage.getItem("projects"))',
+    '  });',
     '  localStorage.setItem("projects",JSON.stringify(d.projects));',
-    'if(!localStorage.getItem("mechs"))',
     '  localStorage.setItem("mechs",JSON.stringify(d.mechanics));',
+    '  localStorage.setItem("__data_version__",String(d.version));',
+    '}',
     'var el=document.getElementById("__xd__");',
     'if(el)el.parentNode.removeChild(el);',
     '})();'
@@ -4407,16 +4495,26 @@ function buildAdmin(){buildAsmSelect();buildMechList();buildProjAdmList();buildL
   if(impFile)impFile.onchange=function(){if(this.files[0]){importConfig(this.files[0]);this.value='';}};
   // Smazat záznamy
   var btnCL=document.getElementById('btnClearLog');
-  if(btnCL)btnCL.onclick=function(){if(confirm('Smazat všechny záznamy?\nAkce je nevratná.')){lsSet('completed',[]);buildLog();buildStats();}};
+  if(btnCL)btnCL.onclick=function(){if(confirm('Smazat všechny záznamy?\nAkce je nevratná.')){var old=ls('completed',[]);lsSet('completed',[]);old.forEach(function(r){sbDelete('completed','id',r.id);});buildLog();buildStats();}};
   // Smazat vyřešené problémy
   var btnCR=document.getElementById('btnClearResolvedIss');
-  if(btnCR)btnCR.onclick=function(){if(confirm('Smazat vyřešené problémy?')){lsSet('gi',loadGI().filter(function(i){return!i.resolved;}));buildAdmIssues();updateIssuesBadge();}};
+  if(btnCR)btnCR.onclick=function(){if(confirm('Smazat vyřešené problémy?')){var all=loadGI();var resolved=all.filter(function(i){return i.resolved;});lsSet('gi',all.filter(function(i){return!i.resolved;}));resolved.forEach(function(i){sbDelete('issues','id',i.id);});buildAdmIssues();updateIssuesBadge();}};
   // Smazat všechny problémy
   var btnCA=document.getElementById('btnClearAllIss');
-  if(btnCA)btnCA.onclick=function(){if(confirm('Smazat VŠECHNY problémy?\nAkce je nevratná.')){lsSet('gi',[]);buildAdmIssues();updateIssuesBadge();}};
+  if(btnCA)btnCA.onclick=function(){if(confirm('Smazat VŠECHNY problémy?\nAkce je nevratná.')){var all=loadGI();lsSet('gi',[]);all.forEach(function(i){sbDelete('issues','id',i.id);});buildAdmIssues();updateIssuesBadge();}};
   // Vynulovat statistiky
   var btnRS=document.getElementById('btnResetStats');
-  if(btnRS)btnRS.onclick=function(){if(confirm('Vynulovat statistiky?\nSmaže historii dokončených montáží.')){lsSet('completed',[]);buildStats();buildLog();}};
+  if(btnRS)btnRS.onclick=function(){if(confirm('Vynulovat statistiky?\nSmaže historii dokončených montáží.')){var old=ls('completed',[]);lsSet('completed',[]);old.forEach(function(r){sbDelete('completed','id',r.id);});buildStats();buildLog();}};
+  // Manuální obnovení dat ze Supabase
+  var btnSync=document.getElementById('btnSyncNow');
+  if(btnSync)btnSync.onclick=function(){
+    btnSync.textContent='⏳ Obnovuji…';btnSync.disabled=true;
+    syncFromSupabase().then(function(){
+      buildAsmSelect();buildMechList();buildProjAdmList();buildLog();buildAdmIssues();updateIssuesBadge();buildLive();
+      btnSync.textContent='✓ Obnoveno';
+      setTimeout(function(){btnSync.textContent='🔄 Obnovit data';btnSync.disabled=false;},1500);
+    });
+  };
 }
 document.querySelectorAll('.anatab').forEach(function(btn){
   btn.addEventListener('click',function(){
@@ -4468,6 +4566,7 @@ function buildLive(){
       card.querySelector('.live-del-btn').addEventListener('click',function(){
         if(confirm('Smazat rozdělanou montáž sestavy '+asmId+'?')){
           localStorage.removeItem('sess_'+asmId);
+          sbDelete('sessions','asm_id',asmId);
           buildLive();
         }
       });
@@ -4500,7 +4599,7 @@ function buildProjAdmList(){
         if(btn.dataset.a==='edit')openProjModal(projs[i],i);
         if(btn.dataset.a==='prog'){var det=document.getElementById('pprog_'+i);det.style.display=det.style.display==='none'?'block':'none';}
         if(btn.dataset.a==='tog'){projs[i].closed=!projs[i].closed;saveProjects(projs);buildProjAdmList();}
-        if(btn.dataset.a==='del'){if(confirm('Smazat projekt "'+projs[i].name+'"?')){projs.splice(i,1);saveProjects(projs);buildProjAdmList();}}
+        if(btn.dataset.a==='del'){if(confirm('Smazat projekt "'+projs[i].name+'"?')){var delId=projs[i].id;projs.splice(i,1);saveProjects(projs);sbDelete('projects','id',delId);buildProjAdmList();}}
       });
     });
     list.appendChild(row);
@@ -4736,7 +4835,7 @@ function buildMechList(){
       btn.addEventListener('click',function(){
         var mechs=getMechs();var i2=Number(btn.dataset.i);
         if(btn.dataset.a==='edit')openMechModal(mechs[i2],i2);
-        if(btn.dataset.a==='del'){if(confirm('Smazat mechanika "'+mechs[i2].name+'"?')){mechs.splice(i2,1);saveMechs(mechs);buildMechList();buildLoginGrid();}}
+        if(btn.dataset.a==='del'){if(confirm('Smazat mechanika "'+mechs[i2].name+'"?')){var delMechId=mechs[i2].id;mechs.splice(i2,1);saveMechs(mechs);sbDelete('mechanics','id',delMechId);buildMechList();buildLoginGrid();}}
       });
     });
     list.appendChild(row);
@@ -4784,7 +4883,7 @@ function renderAdmIssues(all){updateIssuesBadge();
       (!iss.resolved?'<button class="btn btn-ghost" style="margin-left:auto;padding:3px 9px;font-size:11px" data-rid="'+iss.id+'">Vyřešit</button>':'')+
       '</div><div class="iartxt">'+esc(iss.text)+'</div><div class="iarmeta">'+esc(iss.asmId)+' · '+esc(iss.mechName)+' · '+esc(iss.time)+' · '+esc(iss.savedAt)+'</div>';
     var rb=d.querySelector('[data-rid]');
-    if(rb)rb.addEventListener('click',function(){var a=loadGI();var i=a.findIndex(function(x){return x.id===rb.dataset.rid;});if(i>-1){a[i].resolved=true;lsSet('gi',a);}buildAdmIssues();});
+    if(rb)rb.addEventListener('click',function(){var a=loadGI();var i=a.findIndex(function(x){return x.id===rb.dataset.rid;});if(i>-1){a[i].resolved=true;lsSet('gi',a);sbUpsert('issues',issueToDb(a[i]));}buildAdmIssues();});
     list.appendChild(d);
   });
 }
@@ -4838,6 +4937,13 @@ function buildLog(){
 })();
 
 buildLoginGrid();
+
+// Synchronizuj data ze Supabase na pozadí (login se mezitím zobrazí s lokálními daty)
+syncFromSupabase().then(function(){
+  buildLoginGrid();
+}).catch(function(e){
+  console.error('Initial Supabase sync failed:', e);
+});
 </script>
 </body>
 </html>
